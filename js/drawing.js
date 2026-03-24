@@ -25,6 +25,25 @@ export function drawDashedLine(ctx, x1, y1, x2, y2) {
   ctx.restore();
 }
 
+/**
+ * Draw a dashed path through an array of points (following the actual trajectory).
+ */
+export function drawDashedPath(ctx, points) {
+  if (!points || points.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = COLORS.dashedLine;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 export function drawLabel(ctx, text, x, y, fontSize) {
   ctx.save();
   ctx.font = `bold italic ${fontSize}px ${FONT}`;
