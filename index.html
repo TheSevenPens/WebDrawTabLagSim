@@ -61,11 +61,16 @@
     gap: 16px;
     align-items: flex-start;
   }
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
+  }
   .legend {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 10px 0;
     font-size: 0.82rem;
     font-weight: 600;
     color: #aaa;
@@ -78,7 +83,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 10px 0;
   }
   .checkboxes label {
     font-size: 0.82rem;
@@ -91,32 +95,34 @@
 <body>
 <h1>Drawing Tablet Lag Visualizer</h1>
 <div class="main-row">
-  <div class="legend">
-    <div>a: pen tip</div>
-    <div>b: OS pointer</div>
-    <div>c: brush stroke</div>
-    <div class="legend-spacer"></div>
-    <div>a → b = pointer lag</div>
-    <div>b → c = brush lag</div>
+  <div class="side-panel">
+    <div class="legend">
+      <div>a: pen tip</div>
+      <div>b: OS pointer</div>
+      <div>c: brush stroke</div>
+      <div class="legend-spacer"></div>
+      <div>a → b = pointer lag</div>
+      <div>b → c = brush lag</div>
+    </div>
+    <div class="checkboxes">
+      <label><input type="checkbox" id="showLineAB" checked> Line a→b</label>
+      <label><input type="checkbox" id="showLineBC" checked> Line b→c</label>
+      <label><input type="checkbox" id="showA" checked> Label a</label>
+      <label><input type="checkbox" id="showB" checked> Label b</label>
+      <label><input type="checkbox" id="showC" checked> Label c</label>
+      <label><input type="checkbox" id="showPointer" checked> OS pointer</label>
+      <label style="padding-left: 16px;">
+        <select id="pointerStyle" style="font-size: 0.8rem; font-family: inherit;">
+          <option value="mouse">Mouse</option>
+          <option value="crosshair">Crosshair</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="showCircleA" checked> Circle a</label>
+      <label><input type="checkbox" id="showCircleB" checked> Circle b</label>
+      <label><input type="checkbox" id="showCircleC" checked> Circle c</label>
+    </div>
   </div>
   <canvas id="c"></canvas>
-  <div class="checkboxes">
-    <label><input type="checkbox" id="showLineAB" checked> Line a→b</label>
-    <label><input type="checkbox" id="showLineBC" checked> Line b→c</label>
-    <label><input type="checkbox" id="showA" checked> Label a</label>
-    <label><input type="checkbox" id="showB" checked> Label b</label>
-    <label><input type="checkbox" id="showC" checked> Label c</label>
-    <label><input type="checkbox" id="showPointer" checked> OS pointer</label>
-    <label style="padding-left: 16px;">
-      <select id="pointerStyle" style="font-size: 0.8rem; font-family: inherit;">
-        <option value="mouse">Mouse</option>
-        <option value="crosshair">Crosshair</option>
-      </select>
-    </label>
-    <label><input type="checkbox" id="showCircleA" checked> Circle a</label>
-    <label><input type="checkbox" id="showCircleB" checked> Circle b</label>
-    <label><input type="checkbox" id="showCircleC" checked> Circle c</label>
-  </div>
 </div>
 <div class="controls">
   <div class="slider-group">
