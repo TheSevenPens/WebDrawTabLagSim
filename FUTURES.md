@@ -18,6 +18,19 @@ Ideas for fixes, improvements, and new directions.
 - ~~**Higher DPI rendering**: Use `devicePixelRatio` to render at native resolution on Retina/HiDPI displays for sharper lines and text.~~ Done — `Canvas.svelte` scales backing store by `devicePixelRatio`.
 - **Track styling options**: Allow dashed or dotted tracks, adjustable track thickness, or gradient coloring along the track to indicate direction of travel.
 
+## Screen Simulation
+
+- ~~**Screen mode**: Render pointer and brush stroke onto a simulated low-resolution pixelated display.~~ Done — toggleable via Screen mode checkbox.
+- ~~**Screen refresh rate**: Simulate display update frequency (10–144 Hz) with sample-and-hold behavior between refreshes.~~ Done — Refresh Rate slider.
+- ~~**Pixel response time**: Model LCD pixel transition speed with per-pixel exponential blending for ghosting effects.~~ Done — Response Time slider (1–50ms).
+- ~~**Pixel grid**: Show grid lines between simulated pixels.~~ Done — Pixel grid checkbox.
+- ~~**IPS glow**: Bloom effect simulating IPS panel backlight bleed.~~ Done — IPS glow checkbox.
+- **RGB sub-pixel rendering**: Render each simulated pixel as three vertical R/G/B sub-columns, modeling real LCD sub-pixel structure.
+- **Panel type presets**: Preset configurations for common panel types (TN, IPS, VA, OLED) with different response time curves and color characteristics.
+- **Overdrive simulation**: Model the overshoot artifacts that occur when LCD panels use aggressive pixel transition acceleration.
+- **Motion blur visualization**: Show how sample-and-hold displays create perceived motion blur proportional to 1/refresh_rate.
+- **Variable refresh rate (VRR)**: Simulate adaptive sync / G-Sync / FreeSync where refresh rate matches the content update rate.
+
 ## Brush Engine Enhancements
 
 - ~~**Brush spacing (distance threshold)**: Simulate brush engines that only render when the cursor has moved a minimum distance.~~ Done — Brush Spacing slider (0–50px).
@@ -38,7 +51,10 @@ Ideas for fixes, improvements, and new directions.
 - ~~**Brush stroke width slider**: Control the maximum thickness of the tapered stroke.~~ Done — Brush Size slider (0.1–3).
 - **Pause/play button**: Freeze the animation to inspect positions.
 - **Reset button**: Clear history and restart the animation.
-- **Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").
+- ~~**Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").~~ Done — Presets panel in the side panel with save, load, rename, delete, export, and import. All 30 settings stored in localStorage under `lag-viz-presets`.
+- **Cloud sync presets**: Sync saved presets across devices via a cloud backend or service like Firebase.
+- **Shareable preset URLs**: Encode preset data into a URL so configurations can be shared as links without needing file export.
+- **Built-in factory presets**: Ship a set of default presets modeling real devices (e.g., "iPad Pro", "Wacom Cintiq 16", "Surface Pro") so new users can explore common configurations immediately.
 - ~~**Report rate slider**: Simulate how frequently the tablet sends position updates.~~ Done — Report Rate (Hz) slider, 1–60 Hz, grouped under the Pointer controls.
 
 ## Interactive Mode (removed, could return)

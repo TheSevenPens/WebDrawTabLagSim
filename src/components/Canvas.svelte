@@ -4,12 +4,16 @@
   import { autoPosition, computeTrackA, computeSmoothedTrack } from '$lib/animation.js';
   import {
     brushTrail, pushHistory, pushBrushTrail,
-    computeCurrentPositions, preWarm,
+    computeCurrentPositions, preWarm, resetSimulation,
   } from '$lib/simulation.js';
   import {
     drawBrushStroke, drawTrack, drawPosition,
     drawPointer, drawCrosshair, drawPen,
   } from '$lib/drawing.js';
+  import {
+    createScreen, resizeScreen, shouldRefresh,
+    commitFrame, renderScreenToMain,
+  } from '$lib/screen.js';
 
   let {
     pointerLatency,
@@ -35,8 +39,16 @@
     brushSpacing,
     smoothStroke,
     brushTrailLength,
+    screenMode,
+    screenResolution,
+    screenRefreshRate,
+    screenResponseTime,
+    showPixelGrid,
+    showIpsGlow,
+    screenAntiAlias,
   } = $props();
 
+  let containerEl;
   let canvasEl;
   let displayCtx;
   let offscreen;
@@ -47,16 +59,27 @@
   let trackC = [];
   let animFrame;
   let mounted = false;
+  let lastFrameTime = null;
+  let isFullscreen = $state(false);
 
   // Logical (CSS) dimensions — drawing code uses these
   let logicalW = 0;
   let logicalH = 0;
 
+  // Screen simulation state
+  let screen = null;
+
   function resize() {
     if (!canvasEl) return;
     const dpr = window.devicePixelRatio || 1;
-    logicalW = Math.min(window.innerWidth - 40, 1100);
-    logicalH = Math.round(logicalW * 0.5);
+
+    if (isFullscreen) {
+      logicalW = window.innerWidth;
+      logicalH = window.innerHeight;
+    } else {
+      logicalW = Math.min(window.innerWidth - 40, 770);
+      logicalH = Math.round(logicalW * (10 / 16));
+    }
 
     // Set CSS display size
     canvasEl.style.width = logicalW + 'px';
@@ -69,6 +92,36 @@
     offscreen.height = canvasEl.height;
   }
 
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      containerEl.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  function saveSnapshot() {
+    if (!canvasEl) return;
+    const parts = [
+      'lag',
+      `pLat${pointerLatency}`,
+      `pSm${pointerSmoothing}`,
+      `bLat${brushLatency}`,
+      `bSm${brushSmoothing}`,
+      `spd${penSpeed}`,
+      pathType,
+    ];
+    if (reportRate < 60) parts.push(`rr${reportRate}hz`);
+    if (screenMode) parts.push(`scr${screenResolution}px`);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `${parts.join('_')}_${timestamp}.png`;
+
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvasEl.toDataURL('image/png');
+    link.click();
+  }
+
   function recomputeTracks() {
     if (!canvasEl) return;
     trackA = computeTrackA(logicalW, logicalH, penSpeed, pathType);
@@ -78,7 +131,6 @@
 
   // Recompute tracks reactively when params change
   $effect(() => {
-    // Read reactive props to create dependencies
     const _pl = pointerLatency;
     const _ps = pointerSmoothing;
     const _bl = brushLatency;
@@ -90,7 +142,28 @@
     }
   });
 
+  // Manage screen lifecycle reactively
+  $effect(() => {
+    const _sm = screenMode;
+    const _sr = screenResolution;
+    if (!mounted) return;
+
+    if (screenMode) {
+      const sw = screenResolution;
+      const sh = Math.round(sw * (10 / 16));
+      if (!screen) {
+        screen = createScreen(sw, sh);
+      } else if (screen.width !== sw || screen.height !== sh) {
+        resizeScreen(screen, sw, sh);
+      }
+    } else {
+      screen = null;
+    }
+  });
+
   onMount(() => {
+    resetSimulation();
+
     displayCtx = canvasEl.getContext('2d');
     offscreen = document.createElement('canvas');
     ctx = offscreen.getContext('2d');
@@ -110,7 +183,18 @@
     };
     window.addEventListener('resize', onResize);
 
-    function render() {
+    const onFullscreenChange = () => {
+      isFullscreen = !!document.fullscreenElement;
+      resize();
+      recomputeTracks();
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    function render(timestamp) {
+      // Compute real dt for screen refresh timing
+      const dt = lastFrameTime ? (timestamp - lastFrameTime) : 16.67;
+      lastFrameTime = timestamp;
+
       time += penSpeed * TIME_STEP_SCALE;
       const dpr = window.devicePixelRatio || 1;
       const W = logicalW;
@@ -131,7 +215,7 @@
       ctx.fillStyle = COLORS.background;
       ctx.fillRect(0, 0, W, H);
 
-      // Deterministic tracks (back to front)
+      // Deterministic tracks (back to front, always full-res)
       if (showTrackA) {
         drawTrack(ctx, trackA, COLORS.circleA + '80');
       }
@@ -142,18 +226,59 @@
         drawTrack(ctx, trackC, COLORS.circleC + '80');
       }
 
-      // Brush stroke trail
-      if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
+      if (screenMode && screen) {
+        // === SCREEN MODE ===
 
-      // Draw elements back to front
-      drawPosition(ctx, posC, 'c', showCircleC, showC);
-      if (showPointer) {
-        if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y);
-        else drawPointer(ctx, posB.x, posB.y);
+        // Check if the simulated screen should refresh
+        const doRefresh = shouldRefresh(screen, dt, screenRefreshRate);
+
+        if (doRefresh) {
+          // Clear screen canvas to transparent (so tracks show through)
+          screen.ctx.clearRect(0, 0, screen.width, screen.height);
+
+          // Draw screen-layer elements at screen resolution
+          // Scale transform maps logical coords -> screen pixel coords
+          screen.ctx.save();
+          screen.ctx.imageSmoothingEnabled = screenAntiAlias;
+          screen.ctx.scale(screen.width / W, screen.height / H);
+
+          if (showBrushStroke) drawBrushStroke(screen.ctx, brushTrail, brushSize, smoothStroke);
+          if (showPointer) {
+            if (pointerStyle === 'crosshair') drawCrosshair(screen.ctx, posB.x, posB.y);
+            else drawPointer(screen.ctx, posB.x, posB.y);
+          }
+
+          screen.ctx.restore();
+
+          // Apply response time blending (ghosting)
+          commitFrame(screen, screenResponseTime, 1000 / screenRefreshRate);
+        }
+
+        // Composite screen layer onto main canvas (every frame — LCD hold behavior)
+        renderScreenToMain(ctx, screen, W, H, showPixelGrid, showIpsGlow);
+
+        // Draw ideal overlays on top (ground truth elements)
+        drawPosition(ctx, posC, 'c', showCircleC, showC);
+        drawPosition(ctx, posB, 'b', showCircleB, showB);
+        drawPen(ctx, posA.x, posA.y);
+        drawPosition(ctx, posA, 'a', showCircleA, showA);
+
+      } else {
+        // === ORIGINAL PATH ===
+
+        // Brush stroke trail
+        if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
+
+        // Draw elements back to front
+        drawPosition(ctx, posC, 'c', showCircleC, showC);
+        if (showPointer) {
+          if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y);
+          else drawPointer(ctx, posB.x, posB.y);
+        }
+        drawPosition(ctx, posB, 'b', showCircleB, showB);
+        drawPen(ctx, posA.x, posA.y);
+        drawPosition(ctx, posA, 'a', showCircleA, showA);
       }
-      drawPosition(ctx, posB, 'b', showCircleB, showB);
-      drawPen(ctx, posA.x, posA.y);
-      drawPosition(ctx, posA, 'a', showCircleA, showA);
 
       // Blit offscreen buffer to visible canvas (pixel-to-pixel, no transform)
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -162,21 +287,72 @@
       animFrame = requestAnimationFrame(render);
     }
 
-    render();
+    animFrame = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animFrame);
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
     };
   });
 </script>
 
-<canvas bind:this={canvasEl}></canvas>
+<div class="canvas-container" bind:this={containerEl}>
+  <canvas bind:this={canvasEl}></canvas>
+  <div class="overlay-buttons">
+    <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG">📷</button>
+    <button class="overlay-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+      {isFullscreen ? '✕' : '⛶'}
+    </button>
+  </div>
+</div>
 
 <style>
+  .canvas-container {
+    position: relative;
+    display: inline-block;
+  }
+  .canvas-container:fullscreen {
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   canvas {
     border-radius: 8px;
     cursor: default;
     display: block;
+  }
+  .canvas-container:fullscreen canvas {
+    border-radius: 0;
+  }
+  .overlay-buttons {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .canvas-container:hover .overlay-buttons,
+  .canvas-container:fullscreen .overlay-buttons {
+    opacity: 1;
+  }
+  .overlay-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .overlay-btn:hover {
+    background: rgba(0, 0, 0, 0.6);
   }
 </style>

@@ -66,8 +66,8 @@ export const PATH_TYPES = ['lissajous', 'circle', 'star'];
 export function autoPosition(t, canvasWidth, canvasHeight, pathType = 'lissajous') {
   const cx = canvasWidth * 0.5;
   const cy = canvasHeight * 0.5;
-  const rx = canvasWidth * 0.35;
-  const ry = canvasHeight * 0.3;
+  const rx = canvasWidth * 0.44;
+  const ry = canvasHeight * 0.42;
 
   switch (pathType) {
     case 'circle':
