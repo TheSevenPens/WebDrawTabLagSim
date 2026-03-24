@@ -53,9 +53,10 @@ Ideas for fixes, improvements, and new directions.
 ## Technical
 
 - ~~**Extract to separate files**: Split HTML, CSS, and JS into separate files as the project grows.~~ Done.
-- ~~**Use ES modules**: Organize drawing primitives, state management, and animation logic into modules.~~ Done — see `js/` directory.
-- ~~**Deterministic tracks**: Pre-compute the steady-state paths for B and C accounting for smoothing, so tracks accurately reflect each point's trajectory.~~ Done — `computeSmoothedTrack()` in `animation.js`.
-- **Add unit tests**: Test `computeSmoothedTrack`, `autoPosition`, `emaStep`, and history buffer logic.
+- ~~**Use ES modules**: Organize drawing primitives, state management, and animation logic into modules.~~ Done — see `src/lib/`.
+- ~~**Deterministic tracks**: Pre-compute the steady-state paths for B and C accounting for smoothing, so tracks accurately reflect each point's trajectory.~~ Done — `computeSmoothedTrack()` in `src/lib/animation.js`.
+- ~~**Migrate to Svelte + Vite**: Component-based UI with reactive state, HMR dev server, optimized production builds.~~ Done — Svelte 5 with `$state` runes, deployed via GitHub Actions to GitHub Pages.
+- **Add unit tests**: Test `computeSmoothedTrack`, `autoPosition`, `emaStep`, and history buffer logic using Vitest.
 - **Export as GIF/video**: Capture the animation as a GIF or video file for use in presentations.
 - **Embed mode**: URL parameters to configure initial state, hide controls, and auto-play — useful for embedding in blog posts or slides.
 - **Accessibility**: Add ARIA labels to controls, keyboard navigation for sliders, and a text description of the current animation state.
