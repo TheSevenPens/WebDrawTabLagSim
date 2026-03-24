@@ -40,8 +40,8 @@ FUTURES.md                      — Ideas for improvements
 │  - Toggles   │                                   │
 ├──────────────┴──────────────────────────────────┤
 │              Controls (HTML)                     │
-│  [Pointer Lat+Smooth] [Brush Lat+Smooth]        │
-│  [Speed] [Size] [Spacing] [Trail] [Rate] [Path] │
+│  [Pointer Lat+Smooth+Rate] [Brush Lat+Smooth]   │
+│  [Speed] [Size] [Spacing] [Trail] [Path]         │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -62,17 +62,22 @@ The EMA formula: `output = α × input + (1 − α) × prev_output` where `α = 
 
 ### Report Rate
 
-In addition to latency and smoothing, point B is governed by a **report rate** that simulates the tablet's hardware update frequency. The animation runs at ~60fps, but B only updates its position on "report frames" determined by the report rate. Between reports, B holds its last position. This creates visible stepping/jumping at low report rates (e.g., 2-5 Hz), faithfully modeling how low-frequency tablets behave.
+In addition to latency and smoothing, point B is governed by a **report rate** that simulates the tablet's hardware update frequency. The animation runs at ~60fps, but B only updates its position on "report frames" determined by the report rate. Between reports, B holds its last position. This creates visible stepping/jumping at low report rates (e.g., 2-5 Hz), faithfully modeling how low-frequency tablets behave. The Report Rate slider is grouped with the Pointer controls since it is a pointer-related parameter.
 
 ### Pipeline
 
 ```
-A (pen tip) ──[report rate → pointer latency + pointer smoothing]──→ B (OS pointer)
-B (OS pointer) ──[brush latency + brush smoothing]──→ C (brush stroke)
+A (pen tip) ──[report rate gate → pointer latency + pointer smoothing]──→ B (OS pointer)
+B (OS pointer) ──[brush latency + brush smoothing]──→ C (brush position)
                                                         ↓
-                                              brushSpacing threshold
+                                              brushSpacing distance gate
                                                         ↓
-                                                  brushTrail[]
+                                             brushTrail[] (ring buffer)
+                                                        ↓
+                                              brushTrailLength cap
+                                                        ↓
+                                      smoothStroke? → Catmull-Rom + subdivision
+                                                     or straight lineTo
                                                         ↓
                                           drawBrushStroke(brushSize, smoothStroke)
 ```
@@ -240,7 +245,7 @@ Reusable slider: label + range input (with configurable step) + value display to
 Composite component: groups a Latency slider and a Smoothing slider under a shared label. Used for both the Pointer and Brush control groups.
 
 ### `src/components/Controls.svelte`
-Composes two `LatencySmoothing` groups (Pointer, Brush), plus individual sliders for Pen Speed, Brush Size, Brush Spacing, Brush Trail, Report Rate, and a Path dropdown.
+Composes two `LatencySmoothing` groups (Pointer, Brush). The Pointer group includes Latency, Smoothing, and Report Rate (Hz) stacked together since report rate is a pointer-related parameter. A third column contains individual sliders for Pen Speed, Brush Size, Brush Spacing, Brush Trail, and a Path dropdown.
 
 ### `src/App.svelte`
 Root component. Declares all `$state()` runes. Composes `SidePanel`, `Canvas`, `Controls` with `bind:` directives.
