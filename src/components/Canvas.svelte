@@ -31,6 +31,7 @@
     showBrushStroke,
     pathType,
     brushSize,
+    reportRate,
   } = $props();
 
   let canvasEl;
@@ -94,7 +95,7 @@
     resize();
 
     time = preWarm(logicalW, logicalH, {
-      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType,
+      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
     });
     recomputeTracks();
 
@@ -116,7 +117,7 @@
       pushHistory(posA);
 
       const { posB, posC } = computeCurrentPositions(W, H, {
-        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
+        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate,
       });
       pushBrushTrail(posC);
 

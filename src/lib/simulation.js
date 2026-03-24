@@ -7,6 +7,10 @@
  *   - latency: pure time delay in frames (B sees A's position from N frames ago)
  *   - smoothing: EMA filter strength (0 = passthrough, higher = more smoothing)
  *
+ * B also has a report rate: the tablet only sends position updates at a fixed
+ * frequency. Between reports, B holds its last position. At ~60fps animation,
+ * reportRate=60 means every frame, reportRate=10 means every 6th frame, etc.
+ *
  * The EMA formula:  output = alpha * input + (1 - alpha) * prev_output
  * where alpha = 1 / (1 + smoothing).   smoothing=0 → alpha=1 → no filtering.
  *
@@ -26,6 +30,13 @@ const emaC = { x: null, y: null };
 
 // --- B position history (needed so C can delay off B's output) ---
 const posBHistory = [];
+
+// --- Report rate state ---
+let frameCounter = 0;
+let lastReportedB = null;
+
+// Assumed animation frame rate (~60fps)
+const ASSUMED_FPS = 60;
 
 /**
  * Compute EMA alpha from the smoothing slider value.
@@ -90,15 +101,28 @@ export function pushBrushTrail(pos) {
  *
  * @param {number} W - canvas width
  * @param {number} H - canvas height
- * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing }
+ * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate }
  */
 export function computeCurrentPositions(W, H, params) {
   const alphaB = emaAlpha(params.pointerSmoothing);
   const alphaC = emaAlpha(params.brushSmoothing);
 
-  // B = EMA_b( A delayed by pointerLatency )
-  const delayedA = getDelayedPos(params.pointerLatency, W, H);
-  const posB = emaStep(emaB, delayedA, alphaB);
+  // Determine if this frame is a report frame
+  const reportRate = params.reportRate || ASSUMED_FPS;
+  const framesPerReport = Math.max(1, Math.round(ASSUMED_FPS / reportRate));
+
+  frameCounter++;
+
+  let posB;
+  if (frameCounter % framesPerReport === 0 || lastReportedB === null) {
+    // Report frame: update B with delay + EMA
+    const delayedA = getDelayedPos(params.pointerLatency, W, H);
+    posB = emaStep(emaB, delayedA, alphaB);
+    lastReportedB = { x: posB.x, y: posB.y };
+  } else {
+    // Between reports: hold last position (don't run EMA)
+    posB = lastReportedB;
+  }
 
   // C = EMA_c( B delayed by brushLatency )
   pushBHistory(posB);
@@ -113,7 +137,7 @@ export function computeCurrentPositions(W, H, params) {
  *
  * @param {number} W - canvas width
  * @param {number} H - canvas height
- * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed }
+ * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate }
  */
 export function preWarm(W, H, params) {
   let t = 0;
