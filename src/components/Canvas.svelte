@@ -42,20 +42,30 @@
   let animFrame;
   let mounted = false;
 
+  // Logical (CSS) dimensions — drawing code uses these
+  let logicalW = 0;
+  let logicalH = 0;
+
   function resize() {
     if (!canvasEl) return;
-    const w = Math.min(window.innerWidth - 40, 1100);
-    canvasEl.width = w;
-    canvasEl.height = Math.round(w * 0.5);
+    const dpr = window.devicePixelRatio || 1;
+    logicalW = Math.min(window.innerWidth - 40, 1100);
+    logicalH = Math.round(logicalW * 0.5);
+
+    // Set CSS display size
+    canvasEl.style.width = logicalW + 'px';
+    canvasEl.style.height = logicalH + 'px';
+
+    // Set backing store to native resolution
+    canvasEl.width = Math.round(logicalW * dpr);
+    canvasEl.height = Math.round(logicalH * dpr);
     offscreen.width = canvasEl.width;
     offscreen.height = canvasEl.height;
   }
 
   function recomputeTracks() {
     if (!canvasEl) return;
-    const W = canvasEl.width;
-    const H = canvasEl.height;
-    trackA = computeTrackA(W, H, penSpeed);
+    trackA = computeTrackA(logicalW, logicalH, penSpeed);
     trackB = computeSmoothedTrack(trackA, pointerLatency, pointerSmoothing);
     trackC = computeSmoothedTrack(trackB, brushLatency, brushSmoothing);
   }
@@ -80,7 +90,7 @@
 
     resize();
 
-    time = preWarm(canvasEl.width, canvasEl.height, {
+    time = preWarm(logicalW, logicalH, {
       pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed,
     });
     recomputeTracks();
@@ -95,8 +105,9 @@
 
     function render() {
       time += penSpeed * TIME_STEP_SCALE;
-      const W = canvasEl.width;
-      const H = canvasEl.height;
+      const dpr = window.devicePixelRatio || 1;
+      const W = logicalW;
+      const H = logicalH;
 
       const posA = autoPosition(time, W, H);
       pushHistory(posA);
@@ -105,6 +116,9 @@
         pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
       });
       pushBrushTrail(posC);
+
+      // Scale to native resolution — all drawing uses logical coords
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       // Background
       ctx.fillStyle = COLORS.background;
@@ -134,7 +148,8 @@
       drawPen(ctx, posA.x, posA.y);
       drawPosition(ctx, posA, 'a', showCircleA, showA);
 
-      // Blit offscreen buffer to visible canvas
+      // Blit offscreen buffer to visible canvas (pixel-to-pixel, no transform)
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       displayCtx.drawImage(offscreen, 0, 0);
 
       animFrame = requestAnimationFrame(render);

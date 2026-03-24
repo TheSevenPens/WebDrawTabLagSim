@@ -1,4 +1,5 @@
 <script>
+  import LatencySmoothing from './LatencySmoothing.svelte';
   import Slider from './Slider.svelte';
 
   let {
@@ -11,18 +12,24 @@
 </script>
 
 <div class="controls">
-  <Slider label="Pointer Latency (a → b)" min={0} max={80} bind:value={pointerLatency} />
-  <Slider label="Pointer Smoothing" min={0} max={50} bind:value={pointerSmoothing} />
-  <Slider label="Brush Latency (b → c)" min={0} max={80} bind:value={brushLatency} />
-  <Slider label="Brush Smoothing" min={0} max={50} bind:value={brushSmoothing} />
-  <Slider label="Pen Speed" min={1} max={100} bind:value={penSpeed} />
+  <LatencySmoothing
+    label="Pointer (a → b)"
+    bind:latency={pointerLatency}
+    bind:smoothing={pointerSmoothing}
+  />
+  <LatencySmoothing
+    label="Brush (b → c)"
+    bind:latency={brushLatency}
+    bind:smoothing={brushSmoothing}
+  />
+  <Slider label="Pen Speed" min={0.5} max={10} step={0.5} bind:value={penSpeed} />
 </div>
 
 <style>
   .controls {
     display: flex;
     gap: 32px;
-    align-items: center;
+    align-items: flex-start;
     margin-top: 16px;
     flex-wrap: wrap;
     justify-content: center;
