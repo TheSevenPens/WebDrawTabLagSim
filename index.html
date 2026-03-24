@@ -56,11 +56,39 @@
     width: 200px;
     accent-color: #e07040;
   }
+  .main-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0;
+  }
+  .checkboxes label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
 </style>
 </head>
 <body>
 <h1>Drawing Tablet Lag Visualizer</h1>
-<canvas id="c"></canvas>
+<div class="main-row">
+  <canvas id="c"></canvas>
+  <div class="checkboxes">
+    <label><input type="checkbox" id="showLines" checked> Connector lines</label>
+    <label><input type="checkbox" id="showA" checked> Label a</label>
+    <label><input type="checkbox" id="showB" checked> Label b</label>
+    <label><input type="checkbox" id="showC" checked> Label c</label>
+    <label><input type="checkbox" id="showCircleA" checked> Circle a</label>
+    <label><input type="checkbox" id="showCircleB" checked> Circle b</label>
+    <label><input type="checkbox" id="showCircleC" checked> Circle c</label>
+  </div>
+</div>
 <div class="controls">
   <div class="slider-group">
     <label>Pointer Lag (a → b)</label>
@@ -76,9 +104,6 @@
     <label>Pen Speed</label>
     <input type="range" id="penSpeed" min="5" max="100" value="7">
     <span class="value" id="penSpeedVal">7</span>
-  </div>
-  <div class="slider-group">
-    <label><input type="checkbox" id="showLines" checked> Show connector lines</label>
   </div>
 </div>
 
@@ -101,6 +126,12 @@ let pointerLag = 25;
 let brushLag = 35;
 let penSpeed = 7;
 let showLines = true;
+let showA = true;
+let showB = true;
+let showC = true;
+let showCircleA = true;
+let showCircleB = true;
+let showCircleC = true;
 const HISTORY_SIZE = 400;
 let posHistory = [];
 let brushTrail = [];
@@ -118,6 +149,12 @@ pSlider.addEventListener('input', () => { pointerLag = +pSlider.value; pVal.text
 bSlider.addEventListener('input', () => { brushLag = +bSlider.value; bVal.textContent = bSlider.value; });
 sSlider.addEventListener('input', () => { penSpeed = +sSlider.value; sVal.textContent = sSlider.value; });
 document.getElementById('showLines').addEventListener('change', (e) => { showLines = e.target.checked; });
+document.getElementById('showA').addEventListener('change', (e) => { showA = e.target.checked; });
+document.getElementById('showB').addEventListener('change', (e) => { showB = e.target.checked; });
+document.getElementById('showC').addEventListener('change', (e) => { showC = e.target.checked; });
+document.getElementById('showCircleA').addEventListener('change', (e) => { showCircleA = e.target.checked; });
+document.getElementById('showCircleB').addEventListener('change', (e) => { showCircleB = e.target.checked; });
+document.getElementById('showCircleC').addEventListener('change', (e) => { showCircleC = e.target.checked; });
 
 // Auto path: sweeping curve that shows lag well
 function autoPosition(t) {
@@ -337,18 +374,18 @@ function render() {
   }
 
   // 7. Draw position c - brush head (red dashed circle)
-  drawDashedCircle(posC.x, posC.y, 24, '#d04040');
-  drawLabel('c', posC.x, posC.y + 40, 24);
+  if (showCircleC) drawDashedCircle(posC.x, posC.y, 24, '#d04040');
+  if (showC) drawLabel('c', posC.x + 20, posC.y + 26, 24);
 
   // 8. Draw position b - OS pointer
   drawPointer(posB.x, posB.y);
-  drawDashedCircle(posB.x, posB.y, 20, '#d04040');
-  drawLabel('b', posB.x, posB.y + 34, 22);
+  if (showCircleB) drawDashedCircle(posB.x, posB.y, 20, '#d04040');
+  if (showB) drawLabel('b', posB.x, posB.y + 34, 22);
 
   // 9. Draw position a - pen tip (on top of everything)
   drawPen(posA.x, posA.y);
-  drawDashedCircle(posA.x, posA.y, 16, '#d04040');
-  drawLabel('a', posA.x, posA.y + 32, 22);
+  if (showCircleA) drawDashedCircle(posA.x, posA.y, 16, '#d04040');
+  if (showA) drawLabel('a', posA.x - 22, posA.y + 24, 22);
 
   // ---- Legend (bottom-left) ----
   ctx.save();
