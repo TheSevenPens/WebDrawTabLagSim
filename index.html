@@ -61,6 +61,19 @@
     gap: 16px;
     align-items: flex-start;
   }
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #aaa;
+    white-space: nowrap;
+  }
+  .legend-spacer {
+    height: 6px;
+  }
   .checkboxes {
     display: flex;
     flex-direction: column;
@@ -78,12 +91,22 @@
 <body>
 <h1>Drawing Tablet Lag Visualizer</h1>
 <div class="main-row">
+  <div class="legend">
+    <div>a: pen tip</div>
+    <div>b: OS pointer</div>
+    <div>c: brush stroke</div>
+    <div class="legend-spacer"></div>
+    <div>a → b = pointer lag</div>
+    <div>b → c = brush lag</div>
+  </div>
   <canvas id="c"></canvas>
   <div class="checkboxes">
-    <label><input type="checkbox" id="showLines" checked> Connector lines</label>
+    <label><input type="checkbox" id="showLineAB" checked> Line a→b</label>
+    <label><input type="checkbox" id="showLineBC" checked> Line b→c</label>
     <label><input type="checkbox" id="showA" checked> Label a</label>
     <label><input type="checkbox" id="showB" checked> Label b</label>
     <label><input type="checkbox" id="showC" checked> Label c</label>
+    <label><input type="checkbox" id="showPointer" checked> OS pointer</label>
     <label><input type="checkbox" id="showCircleA" checked> Circle a</label>
     <label><input type="checkbox" id="showCircleB" checked> Circle b</label>
     <label><input type="checkbox" id="showCircleC" checked> Circle c</label>
@@ -136,7 +159,9 @@ const CIRCLE_RADII = { a: 16, b: 20, c: 24 };
 
 // Legend lines drawn on the canvas
 const LEGEND_LINES = [
-  'a: pen tip   b: OS pointer   c: brush stroke',
+  'a: pen tip',
+  'b: OS pointer',
+  'c: brush stroke',
   'a \u2192 b = pointer lag',
   'b \u2192 c = brush lag',
 ];
@@ -146,10 +171,12 @@ const state = {
   pointerLag: 25,
   brushLag: 35,
   penSpeed: 7,
-  showLines: true,
+  showLineAB: true,
+  showLineBC: true,
   showA: true,
   showB: true,
   showC: true,
+  showPointer: true,
   showCircleA: true,
   showCircleB: true,
   showCircleC: true,
@@ -190,10 +217,12 @@ function bindCheckbox(id, stateKey) {
 bindSlider('pointerLag', 'pointerLag');
 bindSlider('brushLag', 'brushLag');
 bindSlider('penSpeed', 'penSpeed');
-bindCheckbox('showLines', 'showLines');
+bindCheckbox('showLineAB', 'showLineAB');
+bindCheckbox('showLineBC', 'showLineBC');
 bindCheckbox('showA', 'showA');
 bindCheckbox('showB', 'showB');
 bindCheckbox('showC', 'showC');
+bindCheckbox('showPointer', 'showPointer');
 bindCheckbox('showCircleA', 'showCircleA');
 bindCheckbox('showCircleB', 'showCircleB');
 bindCheckbox('showCircleC', 'showCircleC');
@@ -346,7 +375,7 @@ function drawLegend(W, H) {
   ctx.fillStyle = COLORS.legend;
   ctx.textAlign = 'left';
   const x = 18;
-  const y = H - 68;
+  const y = H - 112;
   LEGEND_LINES.forEach((line, i) => {
     ctx.fillText(line, x, y + i * 22);
   });
@@ -381,18 +410,14 @@ function render() {
   // Layers back to front
   drawBrushStroke(brushTrail);
 
-  if (state.showLines) {
-    drawDashedLine(posA.x, posA.y + 3, posB.x, posB.y);
-    drawDashedLine(posB.x, posB.y, posC.x, posC.y);
-  }
+  if (state.showLineAB) drawDashedLine(posA.x, posA.y + 3, posB.x, posB.y);
+  if (state.showLineBC) drawDashedLine(posB.x, posB.y, posC.x, posC.y);
 
   drawPosition(posC, 'c', state.showCircleC, state.showC);
-  drawPointer(posB.x, posB.y);
+  if (state.showPointer) drawPointer(posB.x, posB.y);
   drawPosition(posB, 'b', state.showCircleB, state.showB);
   drawPen(posA.x, posA.y);
   drawPosition(posA, 'a', state.showCircleA, state.showA);
-
-  drawLegend(W, H);
 
   requestAnimationFrame(render);
 }
