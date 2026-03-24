@@ -89,8 +89,22 @@ export function pushHistory(pos) {
 
 /**
  * Push a C position into the brush trail ring buffer.
+ * When brushSpacing > 0, only adds a point if C has moved at least
+ * that many pixels from the last recorded trail position.
+ * brushSpacing = 0 means continuous (every frame).
+ *
+ * @param {object} pos - { x, y }
+ * @param {number} brushSpacing - Minimum pixel distance threshold (0 = continuous)
  */
-export function pushBrushTrail(pos) {
+export function pushBrushTrail(pos, brushSpacing = 0) {
+  if (brushSpacing > 0 && brushTrail.length > 0) {
+    const last = brushTrail[brushTrail.length - 1];
+    const dx = pos.x - last.x;
+    const dy = pos.y - last.y;
+    if (dx * dx + dy * dy < brushSpacing * brushSpacing) {
+      return; // Haven't moved far enough — skip this frame
+    }
+  }
   brushTrail.push({ x: pos.x, y: pos.y });
   if (brushTrail.length > BRUSH_TRAIL_MAX) brushTrail.shift();
 }

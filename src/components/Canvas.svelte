@@ -32,6 +32,7 @@
     pathType,
     brushSize,
     reportRate,
+    brushSpacing,
   } = $props();
 
   let canvasEl;
@@ -119,7 +120,7 @@
       const { posB, posC } = computeCurrentPositions(W, H, {
         pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate,
       });
-      pushBrushTrail(posC);
+      pushBrushTrail(posC, brushSpacing);
 
       // Scale to native resolution — all drawing uses logical coords
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

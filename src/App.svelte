@@ -12,6 +12,7 @@
   let pathType = $state('lissajous');
   let brushSize = $state(1);
   let reportRate = $state(60);
+  let brushSpacing = $state(0);
 
   // Visibility toggles
   let showA = $state(true);
@@ -50,6 +51,7 @@
     {pathType}
     {brushSize}
     {reportRate}
+    {brushSpacing}
   />
 </div>
 
@@ -60,6 +62,7 @@
   bind:pathType
   bind:brushSize
   bind:reportRate
+  bind:brushSpacing
 />
 
 <style>
