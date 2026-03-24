@@ -12,6 +12,9 @@
   let pathType = $state('lissajous');
   let brushSize = $state(1);
   let reportRate = $state(60);
+  let brushSpacing = $state(0);
+  let smoothStroke = $state(false);
+  let brushTrailLength = $state(180);
 
   // Visibility toggles
   let showA = $state(true);
@@ -37,6 +40,7 @@
     bind:showTrackA bind:showTrackB bind:showTrackC
     bind:showCircleA bind:showCircleB bind:showCircleC
     bind:showBrushStroke
+    bind:smoothStroke
   />
   <Canvas
     {pointerLatency} {pointerSmoothing}
@@ -50,6 +54,9 @@
     {pathType}
     {brushSize}
     {reportRate}
+    {brushSpacing}
+    {smoothStroke}
+    {brushTrailLength}
   />
 </div>
 
@@ -60,6 +67,8 @@
   bind:pathType
   bind:brushSize
   bind:reportRate
+  bind:brushSpacing
+  bind:brushTrailLength
 />
 
 <style>
