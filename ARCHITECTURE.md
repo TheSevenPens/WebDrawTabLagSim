@@ -1,21 +1,31 @@
 # Architecture
 
-Single-page HTML/CSS/JS app that animates drawing tablet lag using HTML5 Canvas. No build tools or frameworks. JavaScript is organized as ES modules.
+Svelte 5 + Vite single-page app that animates drawing tablet lag using HTML5 Canvas. Deployed to GitHub Pages via GitHub Actions.
 
 ## File Structure
 
 ```
-index.html          — HTML structure and CSS styles
-js/
-├── main.js         — entry point: canvas setup, render loop, track management
-├── constants.js    — colors, font, sizes, offsets, buffer limits
-├── state.js        — shared mutable UI state object
-├── simulation.js   — lag pipeline: delay + EMA smoothing for B and C
-├── drawing.js      — all canvas drawing primitives
-├── animation.js    — Lissajous path, deterministic track pre-computation
-└── controls.js     — slider/checkbox/select DOM binding
-ARCHITECTURE.md     — this file
-FUTURES.md          — ideas for improvements
+index.html                      — Vite entry point (minimal shell)
+package.json                    — Dependencies: svelte, vite, @sveltejs/vite-plugin-svelte
+vite.config.js                  — Vite config with Svelte plugin and GitHub Pages base path
+svelte.config.js                — Svelte preprocessor config
+src/
+├── main.js                     — Mounts Svelte app to #app
+├── App.svelte                  — Root component: holds all $state, composes layout
+├── app.css                     — Global styles (body, reset)
+├── components/
+│   ├── Canvas.svelte           — Canvas element, render loop, double buffering
+│   ├── SidePanel.svelte        — Legend + visibility checkboxes + pointer style dropdown
+│   ├── Slider.svelte           — Reusable slider control
+│   └── Controls.svelte         — Bottom slider bar (5 sliders)
+└── lib/
+    ├── constants.js            — Colors, font, sizes, offsets, buffer limits
+    ├── simulation.js           — Lag pipeline: delay + EMA smoothing for B and C
+    ├── animation.js            — Lissajous path, deterministic track pre-computation
+    └── drawing.js              — All canvas drawing primitives
+.github/workflows/deploy.yml   — GitHub Actions: build and deploy to Pages
+ARCHITECTURE.md                 — This file
+FUTURES.md                      — Ideas for improvements
 ```
 
 ## Layout
@@ -32,11 +42,9 @@ FUTURES.md          — ideas for improvements
 └─────────────────────────────────────────────────┘
 ```
 
-- **Side Panel** (left): Contains the legend and all checkbox/dropdown controls stacked vertically.
-  - **Legend**: Defines positions a, b, c and lag types (latency + smoothing).
-  - **Toggles**: Visibility for labels (a/b/c), OS pointer (mouse or crosshair), tracks (a/b/c), and dotted circles (a/b/c).
-- **Canvas** (center-right): Double-buffered `<canvas>` — all animation rendering happens here.
-- **Sliders** (bottom): Pointer Latency, Pointer Smoothing, Brush Latency, Brush Smoothing, Pen Speed.
+- **Side Panel** (left, `SidePanel.svelte`): Legend and all checkbox/dropdown controls stacked vertically.
+- **Canvas** (center-right, `Canvas.svelte`): Double-buffered `<canvas>` for animation.
+- **Sliders** (bottom, `Controls.svelte`): Pointer Latency, Pointer Smoothing, Brush Latency, Brush Smoothing, Pen Speed.
 
 ## Lag Model
 
@@ -64,76 +72,52 @@ Because A follows a periodic Lissajous curve, the steady-state paths of B and C 
 2. **Track B**: Run A's track through the delay + EMA pipeline for several warm-up periods, keep the last period.
 3. **Track C**: Run B's track through C's delay + EMA pipeline the same way.
 
-Tracks are recomputed whenever latency, smoothing, or pen speed sliders change. Track B is only displayed when pointer smoothing > 0 (otherwise it's identical to Track A). Same logic for Track C and brush smoothing.
+Tracks are recomputed reactively via `$effect` whenever latency, smoothing, or pen speed props change. Track B is only displayed when pointer smoothing > 0 (otherwise identical to Track A). Same for Track C.
+
+## State Management
+
+All mutable state lives in `App.svelte` as Svelte 5 `$state()` runes:
+
+```
+pointerLatency, pointerSmoothing    — Pointer lag parameters
+brushLatency, brushSmoothing        — Brush lag parameters
+penSpeed                            — Animation speed
+showA, showB, showC                 — Label visibility
+showPointer, pointerStyle           — OS pointer visibility and style
+showCircleA/B/C                     — Dotted circle visibility
+showTrackA/B/C                      — Track visibility
+```
+
+State flows down via props. `SidePanel` and `Controls` use `bind:` for two-way binding. `Canvas` receives read-only props.
 
 ## Module Responsibilities
 
-### `constants.js`
-Exports all shared configuration:
-- `COLORS` — centralized color palette: separate named colors for circleA (blue), circleB (red), circleC (green), background (slate gray), pen body/tip, brush stroke.
-- `FONT` — Google Sans Flex font string for canvas text.
-- `LABEL_OFFSETS` / `CIRCLE_RADII` — per-position label placement and circle sizes.
-- `HISTORY_SIZE` / `BRUSH_TRAIL_MAX` — rolling buffer capacities.
-- `TIME_STEP_SCALE` — multiplier converting pen speed slider value to time delta per frame.
+### `src/lib/constants.js`
+Centralized config: `COLORS` (separate named colors for A/B/C), `FONT`, `LABEL_OFFSETS`, `CIRCLE_RADII`, `HISTORY_SIZE`, `BRUSH_TRAIL_MAX`, `TIME_STEP_SCALE`.
 
-### `state.js`
-Exports a single `state` object holding all mutable UI state:
-- **Lag parameters**: `pointerLatency`, `pointerSmoothing`, `brushLatency`, `brushSmoothing`, `penSpeed`.
-- **Visibility toggles**: `showA/B/C` (labels), `showCircleA/B/C` (dotted circles), `showTrackA/B/C` (path tracks), `showPointer` (OS pointer).
-- **Pointer style**: `'mouse'` or `'crosshair'`.
+### `src/lib/simulation.js`
+Models the runtime lag pipeline. **Framework-agnostic** — accepts params explicitly, no Svelte imports. Maintains module-level mutable state (EMA accumulators, history buffers). Key exports: `pushHistory`, `pushBrushTrail`, `computeCurrentPositions(W, H, params)`, `preWarm(W, H, params)`.
 
-Mutated directly by controls; read by the render loop.
+### `src/lib/animation.js`
+Deterministic path and track computation: `autoPosition(t, W, H)` for the Lissajous curve (frequencies 2:3), `computeTrackA(W, H, penSpeed)`, `computeSmoothedTrack(inputTrack, latency, smoothing)`.
 
-### `simulation.js`
-Models the runtime lag pipeline. Maintains:
-- `posHistory[]` — rolling buffer of A positions.
-- `posBHistory[]` — rolling buffer of B positions (so C can delay off B's output).
-- `brushTrail[]` — C positions for stroke rendering.
-- EMA accumulators for B and C.
+### `src/lib/drawing.js`
+All canvas drawing primitives: pen, pointer, crosshair, dashed circles, labels, brush stroke, tracks. Pure functions taking `ctx` + coordinates.
 
-Key exports:
-- `pushHistory(pos)` / `pushBrushTrail(pos)` — feed the buffers.
-- `computeCurrentPositions(W, H)` — compute B and C for the current frame using delay + EMA.
-- `preWarm(W, H)` — run HISTORY_SIZE frames of simulation so the visualization starts populated.
+### `src/components/Canvas.svelte`
+The most complex component. Uses `onMount` for canvas setup, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed props change. The render loop itself is imperative (runs every frame), reading current prop values directly.
 
-### `animation.js`
-Deterministic path and track computation:
-- `autoPosition(t, W, H)` — returns `{x, y}` on a Lissajous curve (frequencies 2:3).
-- `computeTrackA(W, H, penSpeed)` — pre-compute one period of A positions at the runtime step rate.
-- `computeSmoothedTrack(inputTrack, latency, smoothing)` — run an input track through delay + EMA for several warm-up periods, return the steady-state output track.
+### `src/components/SidePanel.svelte`
+Legend text + checkbox/dropdown controls. All toggle props use `$bindable()`.
 
-### `drawing.js`
-All canvas drawing primitives. Each function takes `ctx` (offscreen canvas context) as its first argument:
+### `src/components/Slider.svelte`
+Reusable slider: label + range input + value display. Bindable `value` prop.
 
-| Function | Draws |
-|---|---|
-| `drawPen(ctx, x, y)` | Blue stylus with blue tip and drop shadow at position A |
-| `drawPointer(ctx, x, y)` | White mouse cursor with black border at position B |
-| `drawCrosshair(ctx, x, y)` | White crosshair with black border at position B |
-| `drawDashedCircle(ctx, x, y, r, color)` | Colored dashed circle around any position |
-| `drawLabel(ctx, text, x, y, fontSize)` | Bold italic letter (a/b/c) near a position |
-| `drawBrushStroke(ctx, trail)` | Tapered stroke with highlight trailing position C |
-| `drawTrack(ctx, points, color)` | Thin closed-loop path for a deterministic track |
-| `drawPosition(ctx, pos, key, ...)` | Composite: dashed circle + label for a position |
+### `src/components/Controls.svelte`
+Composes five `Slider` instances with bindable props.
 
-### `controls.js`
-Exports `initControls()` which binds all HTML inputs to the `state` object:
-- `bindSlider(id, stateKey)` — connects a range input to a state property and its display span.
-- `bindCheckbox(id, stateKey)` — connects a checkbox to a boolean state property.
-- Pointer style dropdown bound via `change` event.
-
-### `main.js`
-Entry point loaded by `index.html` as `<script type="module">`. Responsibilities:
-1. **Canvas setup**: Creates visible canvas + offscreen canvas for double buffering. Handles resize.
-2. **Track management**: Pre-computes deterministic tracks for A, B, C. Watches slider values and recomputes when they change.
-3. **Render loop** (`render()`): Runs via `requestAnimationFrame`. Each frame:
-   - Advance time by `penSpeed * TIME_STEP_SCALE`.
-   - Compute positions A (deterministic), B (delayed + smoothed A), C (delayed + smoothed B).
-   - Update history and brush trail buffers.
-   - Clear offscreen canvas.
-   - Draw layers back-to-front: tracks → brush stroke → position C → OS pointer → position B → pen → position A.
-   - Blit offscreen to visible canvas.
-4. **Pre-warm**: Simulates HISTORY_SIZE frames before the first render so trails are populated on load.
+### `src/App.svelte`
+Root component. Declares all `$state()` runes. Composes `SidePanel`, `Canvas`, `Controls` with `bind:` directives.
 
 ## Data Flow
 
@@ -153,14 +137,22 @@ penSpeed → time increment → autoPosition(time) → posA
                                                                                                 drawBrushStroke()
 ```
 
+## Build & Deploy
+
+- **Dev**: `bun run dev` (or `npm run dev`) — Vite dev server with HMR
+- **Build**: `bun run build` — produces optimized static files in `dist/`
+- **Deploy**: Push to `main` → GitHub Actions builds and deploys to GitHub Pages at `/WebDrawTabLagSim/`
+
 ## Module Dependency Graph
 
 ```
-main.js
-├── constants.js
-├── state.js
-├── simulation.js ─── constants.js, animation.js, state.js
-├── drawing.js ────── constants.js
-├── animation.js ──── constants.js
-└── controls.js ───── state.js
+App.svelte
+├── Canvas.svelte
+│   ├── lib/constants.js
+│   ├── lib/simulation.js ─── lib/constants.js, lib/animation.js
+│   ├── lib/drawing.js ────── lib/constants.js
+│   └── lib/animation.js ──── lib/constants.js
+├── SidePanel.svelte
+└── Controls.svelte
+    └── Slider.svelte
 ```
