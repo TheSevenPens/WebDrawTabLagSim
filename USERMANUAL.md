@@ -63,6 +63,24 @@ Controls are organized into four groups that mirror the signal pipeline from lef
 - **Refresh Rate (Hz)** (10–144) — how often the simulated screen updates. At 60 Hz it updates every frame. At 10 Hz the pointer visibly jumps between positions, showing the "sample-and-hold" behavior of real LCDs.
 - **Response Time (ms)** (1–50) — how fast individual pixels transition from one color to another. At 1ms transitions are near-instant. At 50ms you see visible ghosting — a smeared trail behind the moving pointer and brush stroke, caused by pixels still transitioning from their previous color.
 
+## Presets
+
+The Presets panel appears in the side panel below the visibility checkboxes. It lets you save, load, and manage named configurations so you can quickly switch between different setups.
+
+**Save a preset** — Type a name in the text field at the top of the Presets panel and click the Save button. All 30 current settings are stored under that name.
+
+**Load a preset** — Click the name of any saved preset in the list. All settings are instantly restored to the values stored in that preset.
+
+**Rename a preset** — Click the pencil icon next to a preset name. The name becomes editable. Type the new name and press Enter to confirm.
+
+**Delete a preset** — Click the x button next to a preset name. The preset is removed immediately.
+
+**Export presets** — Click the Export button at the bottom of the Presets panel. A JSON file containing all your saved presets is downloaded to your computer.
+
+**Import presets** — Click the Import button and select a previously exported JSON file. The imported presets are merged into your current list.
+
+Presets persist in your browser's localStorage, so they survive page reloads and browser restarts. They are local to the browser and device where they were created. Use export/import to transfer presets between browsers or devices.
+
 ## Things to Try
 
 ### See pointer lag in action

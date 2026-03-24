@@ -18,13 +18,15 @@ src/
 │   ├── SidePanel.svelte        — Legend + visibility checkboxes + pointer style dropdown
 │   ├── Slider.svelte           — Reusable slider control (label + range + value)
 │   ├── LatencySmoothing.svelte — Grouped latency + smoothing slider pair
-│   └── Controls.svelte         — Bottom control bar (slider groups + path selector)
+│   ├── Controls.svelte         — Bottom control bar (slider groups + path selector)
+│   └── Presets.svelte          — Preset management UI (save, load, rename, delete, export, import)
 └── lib/
     ├── constants.js            — Colors, font, sizes, offsets, buffer limits
     ├── simulation.js           — Lag pipeline: delay + EMA + report rate for B and C
     ├── animation.js            — Path functions (Lissajous, Circle, Star), track pre-computation
     ├── drawing.js              — All canvas drawing primitives + brush stroke rendering
-    └── screen.js               — Simulated screen: pixelation, refresh rate, response time, grid, glow
+    ├── screen.js               — Simulated screen: pixelation, refresh rate, response time, grid, glow
+    └── presets.js              — Pure localStorage CRUD for named preset configurations
 .github/workflows/deploy.yml   — GitHub Actions: build and deploy to Pages
 ARCHITECTURE.md                 — This file
 FUTURES.md                      — Ideas for improvements
@@ -289,8 +291,14 @@ Simulated screen buffer management. Creates and manages a low-resolution offscre
 ### `src/components/Canvas.svelte`
 The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top.
 
+### `src/lib/presets.js`
+Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-presets`. Format: `[{ name, data }]` where `data` contains all 30 settings values. Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
+
+### `src/components/Presets.svelte`
+Preset management UI component. Provides a save input field, a scrollable preset list (click to load, rename via pencil icon, delete via x button), and export/import buttons. Uses a `children` snippet prop to render inside SidePanel. Calls into `presets.js` for all storage operations.
+
 ### `src/components/SidePanel.svelte`
-Legend text + checkbox/dropdown controls (including smooth stroke toggle). All toggle props use `$bindable()`.
+Legend text + checkbox/dropdown controls (including smooth stroke toggle). All toggle props use `$bindable()`. Accepts a `children` prop and renders it via `{@render children()}` below the Restart/Reset All buttons, used to mount the Presets component.
 
 ### `src/components/Slider.svelte`
 Reusable slider: label + range input (with configurable step) + value display to the right. Bindable `value` prop.
@@ -302,7 +310,7 @@ Composite component: groups a Latency slider and a Smoothing slider under a shar
 Composes four control groups: User Input (Pen Speed + Path), Pointer (Latency + Smoothing + Report Rate), Brush (Latency + Smoothing), and Brush Engine (Size + Spacing + Trail). When screen mode is enabled, a fifth Display group appears with Resolution, Refresh Rate, and Response Time sliders.
 
 ### `src/App.svelte`
-Root component. Declares all `$state()` runes. Composes `SidePanel`, `Canvas`, `Controls` with `bind:` directives.
+Root component. Declares all `$state()` runes. Composes `SidePanel`, `Canvas`, `Controls`, and `Presets` with `bind:` directives. Provides `getCurrentSettings()` to snapshot all 30 state values into a plain object, and `loadPreset(data)` to restore state from a saved preset object. `Presets` is mounted as a child of `SidePanel` via the children snippet prop.
 
 ## Data Flow
 
@@ -346,6 +354,8 @@ App.svelte
 │   ├── lib/animation.js ──── lib/constants.js
 │   └── lib/screen.js ─────── lib/constants.js
 ├── SidePanel.svelte
+│   └── Presets.svelte (via children snippet)
+│       └── lib/presets.js
 └── Controls.svelte
     ├── Slider.svelte
     └── LatencySmoothing.svelte

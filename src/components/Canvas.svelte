@@ -100,6 +100,28 @@
     }
   }
 
+  function saveSnapshot() {
+    if (!canvasEl) return;
+    const parts = [
+      'lag',
+      `pLat${pointerLatency}`,
+      `pSm${pointerSmoothing}`,
+      `bLat${brushLatency}`,
+      `bSm${brushSmoothing}`,
+      `spd${penSpeed}`,
+      pathType,
+    ];
+    if (reportRate < 60) parts.push(`rr${reportRate}hz`);
+    if (screenMode) parts.push(`scr${screenResolution}px`);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `${parts.join('_')}_${timestamp}.png`;
+
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvasEl.toDataURL('image/png');
+    link.click();
+  }
+
   function recomputeTracks() {
     if (!canvasEl) return;
     trackA = computeTrackA(logicalW, logicalH, penSpeed, pathType);
@@ -277,9 +299,12 @@
 
 <div class="canvas-container" bind:this={containerEl}>
   <canvas bind:this={canvasEl}></canvas>
-  <button class="fullscreen-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-    {isFullscreen ? '✕' : '⛶'}
-  </button>
+  <div class="overlay-buttons">
+    <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG">📷</button>
+    <button class="overlay-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+      {isFullscreen ? '✕' : '⛶'}
+    </button>
+  </div>
 </div>
 
 <style>
@@ -301,10 +326,20 @@
   .canvas-container:fullscreen canvas {
     border-radius: 0;
   }
-  .fullscreen-btn {
+  .overlay-buttons {
     position: absolute;
     top: 8px;
     right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .canvas-container:hover .overlay-buttons,
+  .canvas-container:fullscreen .overlay-buttons {
+    opacity: 1;
+  }
+  .overlay-btn {
     width: 28px;
     height: 28px;
     border: none;
@@ -316,14 +351,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s;
   }
-  .canvas-container:hover .fullscreen-btn,
-  .canvas-container:fullscreen .fullscreen-btn {
-    opacity: 1;
-  }
-  .fullscreen-btn:hover {
+  .overlay-btn:hover {
     background: rgba(0, 0, 0, 0.6);
   }
 </style>

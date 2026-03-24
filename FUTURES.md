@@ -51,7 +51,10 @@ Ideas for fixes, improvements, and new directions.
 - ~~**Brush stroke width slider**: Control the maximum thickness of the tapered stroke.~~ Done — Brush Size slider (0.1–3).
 - **Pause/play button**: Freeze the animation to inspect positions.
 - **Reset button**: Clear history and restart the animation.
-- **Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").
+- ~~**Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").~~ Done — Presets panel in the side panel with save, load, rename, delete, export, and import. All 30 settings stored in localStorage under `lag-viz-presets`.
+- **Cloud sync presets**: Sync saved presets across devices via a cloud backend or service like Firebase.
+- **Shareable preset URLs**: Encode preset data into a URL so configurations can be shared as links without needing file export.
+- **Built-in factory presets**: Ship a set of default presets modeling real devices (e.g., "iPad Pro", "Wacom Cintiq 16", "Surface Pro") so new users can explore common configurations immediately.
 - ~~**Report rate slider**: Simulate how frequently the tablet sends position updates.~~ Done — Report Rate (Hz) slider, 1–60 Hz, grouped under the Pointer controls.
 
 ## Interactive Mode (removed, could return)

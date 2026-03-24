@@ -19,6 +19,7 @@
     screenAntiAlias = $bindable(),
     onRestart,
     onResetAll,
+    children,
   } = $props();
 </script>
 
@@ -62,6 +63,7 @@
     <button onclick={onRestart}>Restart</button>
     <button onclick={onResetAll}>Reset All</button>
   </div>
+  {@render children()}
 </div>
 
 <style>

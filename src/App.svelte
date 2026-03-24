@@ -2,6 +2,7 @@
   import Canvas from './components/Canvas.svelte';
   import SidePanel from './components/SidePanel.svelte';
   import Controls from './components/Controls.svelte';
+  import Presets from './components/Presets.svelte';
 
   // Lag parameters
   let pointerLatency = $state(25);
@@ -86,6 +87,53 @@
     // Restart animation
     restartKey++;
   }
+
+  function getCurrentSettings() {
+    return {
+      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
+      penSpeed, pathType, brushSize, reportRate, brushSpacing,
+      smoothStroke, brushTrailLength,
+      showA, showB, showC, showPointer, pointerStyle,
+      showCircleA, showCircleB, showCircleC,
+      showTrackA, showTrackB, showTrackC, showBrushStroke,
+      screenMode, screenResolution, screenRefreshRate, screenResponseTime,
+      showPixelGrid, showIpsGlow, screenAntiAlias,
+    };
+  }
+
+  function loadPreset(d) {
+    if (d.pointerLatency != null) pointerLatency = d.pointerLatency;
+    if (d.pointerSmoothing != null) pointerSmoothing = d.pointerSmoothing;
+    if (d.brushLatency != null) brushLatency = d.brushLatency;
+    if (d.brushSmoothing != null) brushSmoothing = d.brushSmoothing;
+    if (d.penSpeed != null) penSpeed = d.penSpeed;
+    if (d.pathType != null) pathType = d.pathType;
+    if (d.brushSize != null) brushSize = d.brushSize;
+    if (d.reportRate != null) reportRate = d.reportRate;
+    if (d.brushSpacing != null) brushSpacing = d.brushSpacing;
+    if (d.smoothStroke != null) smoothStroke = d.smoothStroke;
+    if (d.brushTrailLength != null) brushTrailLength = d.brushTrailLength;
+    if (d.showA != null) showA = d.showA;
+    if (d.showB != null) showB = d.showB;
+    if (d.showC != null) showC = d.showC;
+    if (d.showPointer != null) showPointer = d.showPointer;
+    if (d.pointerStyle != null) pointerStyle = d.pointerStyle;
+    if (d.showCircleA != null) showCircleA = d.showCircleA;
+    if (d.showCircleB != null) showCircleB = d.showCircleB;
+    if (d.showCircleC != null) showCircleC = d.showCircleC;
+    if (d.showTrackA != null) showTrackA = d.showTrackA;
+    if (d.showTrackB != null) showTrackB = d.showTrackB;
+    if (d.showTrackC != null) showTrackC = d.showTrackC;
+    if (d.showBrushStroke != null) showBrushStroke = d.showBrushStroke;
+    if (d.screenMode != null) screenMode = d.screenMode;
+    if (d.screenResolution != null) screenResolution = d.screenResolution;
+    if (d.screenRefreshRate != null) screenRefreshRate = d.screenRefreshRate;
+    if (d.screenResponseTime != null) screenResponseTime = d.screenResponseTime;
+    if (d.showPixelGrid != null) showPixelGrid = d.showPixelGrid;
+    if (d.showIpsGlow != null) showIpsGlow = d.showIpsGlow;
+    if (d.screenAntiAlias != null) screenAntiAlias = d.screenAntiAlias;
+    restartKey++;
+  }
 </script>
 
 <h1>Drawing Tablet Lag Visualizer</h1>
@@ -104,7 +152,9 @@
     bind:screenAntiAlias
     onRestart={restartAnimation}
     onResetAll={resetAll}
-  />
+  >
+    <Presets {getCurrentSettings} onLoadPreset={loadPreset} />
+  </SidePanel>
   {#key restartKey}
     <Canvas
       {pointerLatency} {pointerSmoothing}
