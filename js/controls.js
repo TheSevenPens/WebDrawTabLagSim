@@ -29,6 +29,9 @@ bindCheckbox('showA', 'showA');
   document.getElementById('pointerStyle').addEventListener('change', (e) => {
     state.pointerStyle = e.target.value;
   });
+  bindCheckbox('showTrackA', 'showTrackA');
+  bindCheckbox('showTrackB', 'showTrackB');
+  bindCheckbox('showTrackC', 'showTrackC');
   bindCheckbox('showCircleA', 'showCircleA');
   bindCheckbox('showCircleB', 'showCircleB');
   bindCheckbox('showCircleC', 'showCircleC');

@@ -6,7 +6,7 @@ export const state = {
   brushLatency: 35,     // frames of pure time delay
   brushSmoothing: 0,    // EMA alpha: 0 = no smoothing, higher = more smoothing
 
-  penSpeed: 7,
+  penSpeed: 3,
 
   // Visibility toggles
   showLineAB: true,
@@ -19,4 +19,7 @@ export const state = {
   showCircleA: true,
   showCircleB: true,
   showCircleC: true,
+  showTrackA: true,
+  showTrackB: true,
+  showTrackC: true,
 };
