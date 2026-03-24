@@ -23,7 +23,7 @@ src/
     ├── constants.js            — Colors, font, sizes, offsets, buffer limits
     ├── simulation.js           — Lag pipeline: delay + EMA + report rate for B and C
     ├── animation.js            — Path functions (Lissajous, Circle, Star), track pre-computation
-    └── drawing.js              — All canvas drawing primitives
+    └── drawing.js              — All canvas drawing primitives + brush stroke rendering
 .github/workflows/deploy.yml   — GitHub Actions: build and deploy to Pages
 ARCHITECTURE.md                 — This file
 FUTURES.md                      — Ideas for improvements
@@ -41,7 +41,7 @@ FUTURES.md                      — Ideas for improvements
 ├──────────────┴──────────────────────────────────┤
 │              Controls (HTML)                     │
 │  [Pointer Lat+Smooth] [Brush Lat+Smooth]        │
-│  [Pen Speed] [Brush Size] [Report Rate] [Path]  │
+│  [Speed] [Size] [Spacing] [Trail] [Rate] [Path] │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -69,7 +69,96 @@ In addition to latency and smoothing, point B is governed by a **report rate** t
 ```
 A (pen tip) ──[report rate → pointer latency + pointer smoothing]──→ B (OS pointer)
 B (OS pointer) ──[brush latency + brush smoothing]──→ C (brush stroke)
+                                                        ↓
+                                              brushSpacing threshold
+                                                        ↓
+                                                  brushTrail[]
+                                                        ↓
+                                          drawBrushStroke(brushSize, smoothStroke)
 ```
+
+## Brush Stroke Rendering
+
+The brush stroke is one of the most visually complex parts of the app. It models how a real drawing application's brush engine renders marks on screen.
+
+### Brush Spacing (Distance Threshold)
+
+Real brush engines don't render a stroke segment every single frame. Instead, they wait until the cursor has moved a minimum distance (the "spacing" or "step" distance) before placing the next dab or segment. This is controlled by the **Brush Spacing** slider:
+
+- **Spacing = 0**: Continuous mode — a new trail point is added every frame (the default).
+- **Spacing > 0**: The simulation checks the Euclidean distance from the last recorded trail point to C's current position. If `dx² + dy² < spacing²`, the frame is skipped. Only when C has traveled far enough is a new point appended to `brushTrail[]`.
+
+At high spacing values (20-50px), the trail becomes visibly segmented — the stroke is composed of widely-spaced sample points connected by straight lines, with abrupt width changes at each joint. This is faithful to how real brush engines look at high spacing.
+
+### Brush Trail Length
+
+The **Brush Trail** slider (5–300, default 180) controls how many points the ring buffer retains. When brush spacing is high, fewer points are added per second, so the trail naturally covers more distance before wrapping. Reducing the trail length prevents the stroke from looping back into itself. The buffer uses a simple shift-based ring: `while (brushTrail.length > maxTrailLength) brushTrail.shift()`.
+
+### Smooth Stroke (Catmull-Rom + Subdivision)
+
+When the **Smooth stroke** checkbox is enabled, the rendering switches from straight line segments to a two-layer smoothing system that dramatically improves visual quality, especially at high brush spacing:
+
+#### Layer 1: Catmull-Rom Spline Interpolation
+
+Instead of connecting trail points with straight lines (`lineTo`), the renderer computes **Catmull-Rom splines** that pass through every control point with C1 continuity (matching tangent directions at each point).
+
+For each segment between trail points `p1` and `p2`, the algorithm looks at four neighboring points:
+
+```
+p0 ── p1 ════════ p2 ── p3
+       ↑ segment  ↑
+```
+
+It converts the Catmull-Rom segment to a cubic Bezier with control points:
+
+```
+cp1 = p1 + (p2 - p0) × tension / 6
+cp2 = p2 - (p3 - p1) × tension / 6
+```
+
+where `tension = 0.5` (standard Catmull-Rom). At the ends of the trail, boundary points are clamped (`p0 = trail[0]` for the first segment, `p3 = trail[last]` for the last).
+
+This eliminates the sharp corners that appear when widely-spaced points are connected by straight lines. The curve naturally flows through each sample point.
+
+#### Layer 2: Per-Segment Subdivision (16×)
+
+Catmull-Rom alone still has a visual problem: each segment is drawn as a **single canvas stroke with one width**, so the line width jumps discontinuously at each control point. If trail point i has width 12px and point i+1 has width 18px, you see a sudden step.
+
+To fix this, each Catmull-Rom segment is **subdivided into 16 sub-segments**. For each subdivision step `s` from 0 to 1:
+
+1. **Position** is evaluated on the cubic Bezier using De Casteljau's algorithm:
+   ```
+   x(s) = (1-s)³·p1 + 3(1-s)²s·cp1 + 3(1-s)s²·cp2 + s³·p2
+   ```
+
+2. **Width** is smoothly interpolated between the segment start and end:
+   ```
+   t = t0 + (t1 - t0) × s        // normalized position along full trail
+   width = (1 + t² × 35) × brushSize
+   ```
+
+3. **Opacity** is similarly interpolated:
+   ```
+   alpha = 0.08 + t × 0.55
+   ```
+
+Each sub-segment is drawn as a short `lineTo` with `lineCap = 'round'`, so the 16 tiny overlapping strokes create a seamlessly tapered curve with no visible width discontinuities.
+
+#### Highlight Pass
+
+Both rendering modes (straight and smooth) include a second "highlight" pass that draws a lighter, slightly offset stroke over the top half of the trail. This creates a subtle specular highlight effect that gives the brush mark a 3D/wet-paint appearance. In smooth mode, the highlight is also subdivided.
+
+#### Visual Comparison
+
+```
+Spacing=0, Smooth=off:   ████████████████  (continuous, smooth by density)
+Spacing=30, Smooth=off:  ■───■───■───■───  (segmented, angular, width jumps)
+Spacing=30, Smooth=on:   ●═══●═══●═══●═══  (curved, tapered, seamless)
+```
+
+### Brush Size
+
+The **Brush Size** slider (0.1–3, default 1) is a global multiplier applied to all width calculations in `drawBrushStroke`. At 1.0, the stroke peaks at 36px wide. At 0.5, it peaks at 18px. At 3.0, it peaks at 108px.
 
 ## Path Types
 
@@ -107,6 +196,9 @@ brushLatency, brushSmoothing        — Brush lag parameters
 penSpeed                            — Animation speed (0.5–10, step 0.5)
 pathType                            — Path shape: 'lissajous' | 'circle' | 'star'
 brushSize                           — Brush stroke scale factor (0.1–3)
+brushSpacing                        — Min pixel distance between trail points (0 = continuous)
+brushTrailLength                    — Max trail buffer size (5–300, default 180)
+smoothStroke                        — Enable Catmull-Rom + subdivision rendering
 reportRate                          — Tablet report rate in Hz (1–60)
 showA, showB, showC                 — Label visibility
 showPointer, pointerStyle           — OS pointer visibility and style (mouse/crosshair)
@@ -123,19 +215,23 @@ State flows down via props. `SidePanel` and `Controls` use `bind:` for two-way b
 Centralized config: `COLORS` (separate named colors for A/B/C), `FONT`, `LABEL_OFFSETS`, `CIRCLE_RADII`, `HISTORY_SIZE`, `BRUSH_TRAIL_MAX`, `TIME_STEP_SCALE`.
 
 ### `src/lib/simulation.js`
-Models the runtime lag pipeline. **Framework-agnostic** — accepts params explicitly, no Svelte imports. Maintains module-level mutable state (EMA accumulators, history buffers, report rate frame counter). Key exports: `pushHistory`, `pushBrushTrail`, `computeCurrentPositions(W, H, params)`, `preWarm(W, H, params)`.
+Models the runtime lag pipeline. **Framework-agnostic** — accepts params explicitly, no Svelte imports. Maintains module-level mutable state (EMA accumulators, history buffers, report rate frame counter). Key exports: `pushHistory`, `pushBrushTrail(pos, brushSpacing, maxTrailLength)`, `computeCurrentPositions(W, H, params)`, `preWarm(W, H, params)`.
 
 ### `src/lib/animation.js`
 Path functions (`lissajousPosition`, `circlePosition`, `starPosition`) and the unified `autoPosition(t, W, H, pathType)` dispatcher. Track pre-computation: `computeTrackA(W, H, penSpeed, pathType)`, `computeSmoothedTrack(inputTrack, latency, smoothing)`.
 
 ### `src/lib/drawing.js`
-All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with black outline), dashed circles, labels, brush stroke (with configurable size), tracks. Pure functions taking `ctx` + coordinates.
+All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with black outline), dashed circles, labels, tracks, and the brush stroke renderer with its Catmull-Rom + subdivision pipeline. Key internal functions:
+
+- `catmullRomToBezier(p0, p1, p2, p3)` — Converts 4 Catmull-Rom points to cubic Bezier control points
+- `evalBezier(p0x, p0y, cp1x, cp1y, cp2x, cp2y, p1x, p1y, s)` — De Casteljau evaluation at parameter s
+- `drawBrushStroke(ctx, trail, brushSize, smoothStroke)` — Main stroke renderer with branching for smooth/straight modes
 
 ### `src/components/Canvas.svelte`
 The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change.
 
 ### `src/components/SidePanel.svelte`
-Legend text + checkbox/dropdown controls. All toggle props use `$bindable()`.
+Legend text + checkbox/dropdown controls (including smooth stroke toggle). All toggle props use `$bindable()`.
 
 ### `src/components/Slider.svelte`
 Reusable slider: label + range input (with configurable step) + value display to the right. Bindable `value` prop.
@@ -144,7 +240,7 @@ Reusable slider: label + range input (with configurable step) + value display to
 Composite component: groups a Latency slider and a Smoothing slider under a shared label. Used for both the Pointer and Brush control groups.
 
 ### `src/components/Controls.svelte`
-Composes two `LatencySmoothing` groups (Pointer, Brush), plus individual sliders for Pen Speed, Brush Size, Report Rate, and a Path dropdown.
+Composes two `LatencySmoothing` groups (Pointer, Brush), plus individual sliders for Pen Speed, Brush Size, Brush Spacing, Brush Trail, Report Rate, and a Path dropdown.
 
 ### `src/App.svelte`
 Root component. Declares all `$state()` runes. Composes `SidePanel`, `Canvas`, `Controls` with `bind:` directives.
@@ -164,9 +260,14 @@ penSpeed → time increment → autoPosition(time, pathType) → posA
                                                                                         ↓
                                             brushLatency → getBDelayedPos() → EMA(brushSmoothing) → posC
                                                                                                       ↓
-                                                                                                brushTrail[]
+                                                                              brushSpacing threshold gate
                                                                                                       ↓
-                                                                                          drawBrushStroke(brushSize)
+                                                                          brushTrail[] (capped by brushTrailLength)
+                                                                                                      ↓
+                                                                    smoothStroke? → Catmull-Rom + 16× subdivision
+                                                                                     or straight lineTo segments
+                                                                                                      ↓
+                                                                                  drawBrushStroke(brushSize, smoothStroke)
 ```
 
 ## Build & Deploy

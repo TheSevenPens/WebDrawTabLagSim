@@ -95,8 +95,9 @@ export function pushHistory(pos) {
  *
  * @param {object} pos - { x, y }
  * @param {number} brushSpacing - Minimum pixel distance threshold (0 = continuous)
+ * @param {number} maxTrailLength - Maximum number of points in the trail buffer
  */
-export function pushBrushTrail(pos, brushSpacing = 0) {
+export function pushBrushTrail(pos, brushSpacing = 0, maxTrailLength = BRUSH_TRAIL_MAX) {
   if (brushSpacing > 0 && brushTrail.length > 0) {
     const last = brushTrail[brushTrail.length - 1];
     const dx = pos.x - last.x;
@@ -106,7 +107,7 @@ export function pushBrushTrail(pos, brushSpacing = 0) {
     }
   }
   brushTrail.push({ x: pos.x, y: pos.y });
-  if (brushTrail.length > BRUSH_TRAIL_MAX) brushTrail.shift();
+  while (brushTrail.length > maxTrailLength) brushTrail.shift();
 }
 
 /**

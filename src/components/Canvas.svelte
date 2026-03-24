@@ -33,6 +33,8 @@
     brushSize,
     reportRate,
     brushSpacing,
+    smoothStroke,
+    brushTrailLength,
   } = $props();
 
   let canvasEl;
@@ -120,7 +122,7 @@
       const { posB, posC } = computeCurrentPositions(W, H, {
         pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate,
       });
-      pushBrushTrail(posC, brushSpacing);
+      pushBrushTrail(posC, brushSpacing, brushTrailLength);
 
       // Scale to native resolution — all drawing uses logical coords
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -141,7 +143,7 @@
       }
 
       // Brush stroke trail
-      if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize);
+      if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
 
       // Draw elements back to front
       drawPosition(ctx, posC, 'c', showCircleC, showC);
