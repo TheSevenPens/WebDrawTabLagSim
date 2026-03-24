@@ -119,7 +119,7 @@ export function preWarm(W, H, params) {
   let t = 0;
   for (let i = 0; i < HISTORY_SIZE; i++) {
     t += params.penSpeed * TIME_STEP_SCALE;
-    const posA = autoPosition(t, W, H);
+    const posA = autoPosition(t, W, H, params.pathType || 'lissajous');
     pushHistory(posA);
     const { posC } = computeCurrentPositions(W, H, params);
     pushBrushTrail(posC);
