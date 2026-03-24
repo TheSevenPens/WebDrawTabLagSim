@@ -55,8 +55,8 @@
   function resize() {
     if (!canvasEl) return;
     const dpr = window.devicePixelRatio || 1;
-    logicalW = Math.min(window.innerWidth - 40, 1100);
-    logicalH = Math.round(logicalW * 0.5);
+    logicalW = Math.min(window.innerWidth - 40, 770);
+    logicalH = Math.round(logicalW * (10 / 16));
 
     // Set CSS display size
     canvasEl.style.width = logicalW + 'px';
