@@ -7,6 +7,7 @@ Ideas for fixes, improvements, and new directions.
 - **Label collision avoidance**: Labels a, b, c can overlap when lag values are small. Could dynamically reposition labels based on proximity to each other.
 - **Resize resets animation**: Resizing the window doesn't preserve the visual state well since canvas dimensions change but history positions use old coordinates. Could normalize positions to percentages.
 - **Brush trail wrapping**: At very high speeds, the brush trail can loop over itself in ways that look odd. Could limit trail length dynamically based on speed.
+- **Report rate and track sync**: The pre-computed tracks don't account for report rate stepping. At low report rates, B's actual path deviates from its smooth track. Could compute a stepped version of track B.
 
 ## Visual Improvements
 
@@ -15,18 +16,20 @@ Ideas for fixes, improvements, and new directions.
 - **Stroke color picker**: Let the user choose the brush stroke color.
 - **Background color picker**: Let the user change the background color.
 - **Dark/light theme toggle**: Switch between the current slate background with dark page, or a white canvas with light page.
-- **Higher DPI rendering**: Use `devicePixelRatio` to render at native resolution on Retina/HiDPI displays for sharper lines and text.
+- ~~**Higher DPI rendering**: Use `devicePixelRatio` to render at native resolution on Retina/HiDPI displays for sharper lines and text.~~ Done — `Canvas.svelte` scales backing store by `devicePixelRatio`.
 - **Track styling options**: Allow dashed or dotted tracks, adjustable track thickness, or gradient coloring along the track to indicate direction of travel.
 
 ## New Controls
 
-- **Animation path selector**: Choose between different paths — Lissajous (various frequency ratios), circle, figure-8, sine wave, spiral, or random walk.
+- ~~**Animation path selector**: Choose between different paths.~~ Done — Lissajous, Circle, Star via dropdown.
+- **More path types**: Sine wave, spiral, figure-8, random walk, or custom user-drawn paths.
 - **Lissajous frequency ratio selector**: Let the user control the X and Y frequencies to change path complexity (e.g., 1:2 for figure-8, 2:3 for pretzel, higher ratios for more loops).
-- **Brush stroke width slider**: Control the maximum thickness of the tapered stroke.
+- ~~**Brush stroke width slider**: Control the maximum thickness of the tapered stroke.~~ Done — Brush Size slider (0.1–3).
 - **Brush trail length slider**: Control how long the stroke trail persists.
 - **Pause/play button**: Freeze the animation to inspect positions.
 - **Reset button**: Clear history and restart the animation.
 - **Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").
+- ~~**Report rate slider**: Simulate how frequently the tablet sends position updates.~~ Done — Report Rate (Hz) slider, 1–60 Hz.
 
 ## Interactive Mode (removed, could return)
 
@@ -40,6 +43,12 @@ Ideas for fixes, improvements, and new directions.
 - **Smoothing comparison mode**: Show multiple tracks simultaneously using different smoothing algorithms on the same input, to visualize how filter choice affects path deviation.
 - **Per-axis smoothing**: Allow different smoothing parameters for X and Y axes, modeling tablets that may have different response characteristics horizontally vs vertically.
 - **Velocity-dependent smoothing**: Increase smoothing at low speeds (common in real tablet drivers) and reduce it at high speeds, showing how adaptive smoothing affects the path.
+
+## Report Rate Enhancements
+
+- **Variable report rate**: Simulate tablets that change report rate under load or based on USB polling interval.
+- **Interpolated report rate**: Show what happens when the OS interpolates between reports (linear interpolation between last two reported positions) vs raw stepping.
+- **Report rate jitter**: Add random variation to the report interval to simulate real-world USB timing inconsistencies.
 
 ## Educational Features
 
@@ -61,5 +70,3 @@ Ideas for fixes, improvements, and new directions.
 - **Embed mode**: URL parameters to configure initial state, hide controls, and auto-play — useful for embedding in blog posts or slides.
 - **Accessibility**: Add ARIA labels to controls, keyboard navigation for sliders, and a text description of the current animation state.
 - **State serialization**: Encode the full slider/toggle state into a URL hash so configurations can be shared as links.
-
-temp
