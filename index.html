@@ -330,20 +330,10 @@ function render() {
   // 1. Brush stroke trail (furthest back)
   drawBrushStroke(brushTrail);
 
-  // 2. Cursor arrows embedded in the brush stroke
-  if (brushTrail.length > 8) {
-    const step = Math.max(2, Math.floor(brushTrail.length / 8));
-    for (let i = step; i < brushTrail.length - 2; i += step) {
-      const p = brushTrail[i];
-      const t = i / brushTrail.length;
-      drawCursorArrow(p.x - 4, p.y - 6, 0.7, 0.15 + t * 0.35);
-    }
-  }
-
-  // 3. Connector lines (a to b, b to c)
+  // 2. Connector lines (a to b, b to c)
   if (showLines) {
-    drawDashedLine(posA.x, posA.y + 3, posB.x + 6, posB.y + 6);
-    drawDashedLine(posB.x + 6, posB.y + 6, posC.x, posC.y);
+    drawDashedLine(posA.x, posA.y + 3, posB.x, posB.y);
+    drawDashedLine(posB.x, posB.y, posC.x, posC.y);
   }
 
   // 7. Draw position c - brush head (red dashed circle)
@@ -352,8 +342,8 @@ function render() {
 
   // 8. Draw position b - OS pointer
   drawPointer(posB.x, posB.y);
-  drawDashedCircle(posB.x + 6, posB.y + 8, 20, '#d04040');
-  drawLabel('b', posB.x + 6, posB.y + 38, 22);
+  drawDashedCircle(posB.x, posB.y, 20, '#d04040');
+  drawLabel('b', posB.x, posB.y + 34, 22);
 
   // 9. Draw position a - pen tip (on top of everything)
   drawPen(posA.x, posA.y);
