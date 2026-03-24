@@ -9,6 +9,8 @@
   let brushLatency = $state(35);
   let brushSmoothing = $state(0);
   let penSpeed = $state(3);
+  let pathType = $state('lissajous');
+  let brushSize = $state(1);
 
   // Visibility toggles
   let showA = $state(true);
@@ -44,6 +46,8 @@
     {showCircleA} {showCircleB} {showCircleC}
     {showTrackA} {showTrackB} {showTrackC}
     {showBrushStroke}
+    {pathType}
+    {brushSize}
   />
 </div>
 
@@ -51,6 +55,8 @@
   bind:pointerLatency bind:pointerSmoothing
   bind:brushLatency bind:brushSmoothing
   bind:penSpeed
+  bind:pathType
+  bind:brushSize
 />
 
 <style>

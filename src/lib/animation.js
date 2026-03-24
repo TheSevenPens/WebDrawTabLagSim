@@ -1,22 +1,87 @@
 import { TIME_STEP_SCALE } from './constants.js';
 
-// Lissajous frequency ratio — simpler ratio = fewer loops
+// --- Path type: Lissajous ---
 const FREQ_X = 2;
 const FREQ_Y = 3;
+
+function lissajousPosition(t, cx, cy, rx, ry) {
+  return {
+    x: cx + rx * Math.sin(t * FREQ_X),
+    y: cy + ry * Math.sin(t * FREQ_Y),
+  };
+}
+
+// --- Path type: Circle ---
+function circlePosition(t, cx, cy, rx, ry) {
+  return {
+    x: cx + rx * Math.sin(t),
+    y: cy + ry * Math.cos(t),
+  };
+}
+
+// --- Path type: Star ---
+// The pen moves directly between the 5 points of a star (pentagram order).
+// We parameterize so that t goes 0→2π for one full traversal of all 5 edges.
+
+const STAR_POINTS = 5;
+// Pentagram vertex order: 0, 2, 4, 1, 3 (skip-one pattern)
+const STAR_ORDER = [0, 2, 4, 1, 3];
+
+function getStarVertices(cx, cy, rx, ry) {
+  const vertices = [];
+  for (let i = 0; i < STAR_POINTS; i++) {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / STAR_POINTS;
+    vertices.push({
+      x: cx + rx * Math.cos(angle),
+      y: cy + ry * Math.sin(angle),
+    });
+  }
+  return vertices;
+}
+
+function starPosition(t, cx, cy, rx, ry) {
+  const vertices = getStarVertices(cx, cy, rx, ry);
+  // Normalize t to [0, 1) within one period
+  const period = 2 * Math.PI;
+  let frac = ((t % period) + period) % period / period;
+  // Map fraction to edge index + interpolation
+  const totalEdges = STAR_POINTS;
+  const edgeFloat = frac * totalEdges;
+  const edgeIdx = Math.floor(edgeFloat) % totalEdges;
+  const edgeFrac = edgeFloat - Math.floor(edgeFloat);
+  const from = vertices[STAR_ORDER[edgeIdx]];
+  const to = vertices[STAR_ORDER[(edgeIdx + 1) % totalEdges]];
+  return {
+    x: from.x + (to.x - from.x) * edgeFrac,
+    y: from.y + (to.y - from.y) * edgeFrac,
+  };
+}
+
+// --- Public API ---
+
 const PERIOD = 2 * Math.PI;
 
-export function autoPosition(t, canvasWidth, canvasHeight) {
+export const PATH_TYPES = ['lissajous', 'circle', 'star'];
+
+export function autoPosition(t, canvasWidth, canvasHeight, pathType = 'lissajous') {
   const cx = canvasWidth * 0.5;
   const cy = canvasHeight * 0.5;
-  return {
-    x: cx + canvasWidth * 0.35 * Math.sin(t * FREQ_X),
-    y: cy + canvasHeight * 0.3 * Math.sin(t * FREQ_Y),
-  };
+  const rx = canvasWidth * 0.35;
+  const ry = canvasHeight * 0.3;
+
+  switch (pathType) {
+    case 'circle':
+      return circlePosition(t, cx, cy, rx, ry);
+    case 'star':
+      return starPosition(t, cx, cy, rx, ry);
+    case 'lissajous':
+    default:
+      return lissajousPosition(t, cx, cy, rx, ry);
+  }
 }
 
 /**
  * Compute how many simulation steps make up one full period at the given pen speed.
- * This must match the runtime: each frame advances time by penSpeed * TIME_STEP_SCALE.
  */
 function stepsPerPeriod(penSpeed) {
   return Math.round(PERIOD / (penSpeed * TIME_STEP_SCALE));
@@ -25,12 +90,12 @@ function stepsPerPeriod(penSpeed) {
 /**
  * Pre-compute A's track as a closed loop, sampled at the same rate as runtime.
  */
-export function computeTrackA(canvasWidth, canvasHeight, penSpeed) {
+export function computeTrackA(canvasWidth, canvasHeight, penSpeed, pathType = 'lissajous') {
   const steps = stepsPerPeriod(penSpeed);
   const dt = penSpeed * TIME_STEP_SCALE;
   const points = [];
   for (let i = 0; i < steps; i++) {
-    points.push(autoPosition(i * dt, canvasWidth, canvasHeight));
+    points.push(autoPosition(i * dt, canvasWidth, canvasHeight, pathType));
   }
   return points;
 }
@@ -38,15 +103,6 @@ export function computeTrackA(canvasWidth, canvasHeight, penSpeed) {
 /**
  * Compute the steady-state track for B (or C) by running the full
  * delay + EMA pipeline over multiple periods and returning the last period.
- *
- * Because we use the same step count and dt as runtime, the EMA and latency
- * behave identically to the live simulation.
- *
- * @param {Array} inputTrack - One period of source positions (A's track for B, B's track for C)
- * @param {number} latency - Delay in frames (same units as runtime)
- * @param {number} smoothing - EMA smoothing parameter (0 = passthrough)
- * @param {number} warmupPeriods - Extra periods to reach EMA steady state
- * @returns {Array} One period of steady-state positions
  */
 export function computeSmoothedTrack(inputTrack, latency, smoothing, warmupPeriods = 5) {
   const steps = inputTrack.length;
@@ -60,13 +116,11 @@ export function computeSmoothedTrack(inputTrack, latency, smoothing, warmupPerio
   const lastPeriod = [];
 
   for (let i = 0; i < totalSteps; i++) {
-    // Delayed read from the periodic input
     const delayedIdx = i - delaySteps;
     const input = delayedIdx >= 0
       ? inputTrack[delayedIdx % steps]
       : inputTrack[((delayedIdx % steps) + steps) % steps];
 
-    // EMA step
     if (ema.x === null) {
       ema.x = input.x;
       ema.y = input.y;
@@ -75,7 +129,6 @@ export function computeSmoothedTrack(inputTrack, latency, smoothing, warmupPerio
       ema.y = alpha * input.y + (1 - alpha) * ema.y;
     }
 
-    // Collect the last period
     if (i >= totalSteps - steps) {
       lastPeriod.push({ x: ema.x, y: ema.y });
     }

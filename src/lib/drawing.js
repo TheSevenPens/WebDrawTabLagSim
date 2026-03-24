@@ -141,7 +141,7 @@ export function drawCrosshair(ctx, x, y) {
   ctx.restore();
 }
 
-export function drawBrushStroke(ctx, trail) {
+export function drawBrushStroke(ctx, trail, brushSize = 1) {
   if (trail.length < 3) return;
   const [r, g, b] = COLORS.brushStroke;
   const [hr, hg, hb] = COLORS.brushHighlight;
@@ -151,7 +151,7 @@ export function drawBrushStroke(ctx, trail) {
   for (let i = 1; i < trail.length; i++) {
     const t = i / trail.length;
     ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.08 + t * 0.55})`;
-    ctx.lineWidth = 1 + t * t * 35;
+    ctx.lineWidth = (1 + t * t * 35) * brushSize;
     ctx.beginPath();
     ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
     ctx.lineTo(trail[i].x, trail[i].y);
@@ -160,7 +160,7 @@ export function drawBrushStroke(ctx, trail) {
   const halfLen = Math.floor(trail.length * 0.5);
   for (let i = halfLen; i < trail.length; i++) {
     const t = i / trail.length;
-    const w = t * t * 20;
+    const w = t * t * 20 * brushSize;
     ctx.strokeStyle = `rgba(${hr}, ${hg}, ${hb}, ${t * 0.15})`;
     ctx.lineWidth = w;
     ctx.beginPath();

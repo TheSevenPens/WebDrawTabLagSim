@@ -29,6 +29,8 @@
     showTrackB,
     showTrackC,
     showBrushStroke,
+    pathType,
+    brushSize,
   } = $props();
 
   let canvasEl;
@@ -65,7 +67,7 @@
 
   function recomputeTracks() {
     if (!canvasEl) return;
-    trackA = computeTrackA(logicalW, logicalH, penSpeed);
+    trackA = computeTrackA(logicalW, logicalH, penSpeed, pathType);
     trackB = computeSmoothedTrack(trackA, pointerLatency, pointerSmoothing);
     trackC = computeSmoothedTrack(trackB, brushLatency, brushSmoothing);
   }
@@ -78,6 +80,7 @@
     const _bl = brushLatency;
     const _bs = brushSmoothing;
     const _sp = penSpeed;
+    const _pt = pathType;
     if (mounted) {
       recomputeTracks();
     }
@@ -91,7 +94,7 @@
     resize();
 
     time = preWarm(logicalW, logicalH, {
-      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed,
+      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType,
     });
     recomputeTracks();
 
@@ -109,7 +112,7 @@
       const W = logicalW;
       const H = logicalH;
 
-      const posA = autoPosition(time, W, H);
+      const posA = autoPosition(time, W, H, pathType);
       pushHistory(posA);
 
       const { posB, posC } = computeCurrentPositions(W, H, {
@@ -136,7 +139,7 @@
       }
 
       // Brush stroke trail
-      if (showBrushStroke) drawBrushStroke(ctx, brushTrail);
+      if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize);
 
       // Draw elements back to front
       drawPosition(ctx, posC, 'c', showCircleC, showC);
