@@ -10,6 +10,10 @@
     drawBrushStroke, drawTrack, drawPosition,
     drawPointer, drawCrosshair, drawPen,
   } from '$lib/drawing.js';
+  import {
+    createScreen, resizeScreen, shouldRefresh,
+    commitFrame, renderScreenToMain,
+  } from '$lib/screen.js';
 
   let {
     pointerLatency,
@@ -35,6 +39,12 @@
     brushSpacing,
     smoothStroke,
     brushTrailLength,
+    screenMode,
+    screenResolution,
+    screenRefreshRate,
+    screenResponseTime,
+    showPixelGrid,
+    showIpsGlow,
   } = $props();
 
   let canvasEl;
@@ -47,10 +57,14 @@
   let trackC = [];
   let animFrame;
   let mounted = false;
+  let lastFrameTime = null;
 
   // Logical (CSS) dimensions — drawing code uses these
   let logicalW = 0;
   let logicalH = 0;
+
+  // Screen simulation state
+  let screen = null;
 
   function resize() {
     if (!canvasEl) return;
@@ -78,7 +92,6 @@
 
   // Recompute tracks reactively when params change
   $effect(() => {
-    // Read reactive props to create dependencies
     const _pl = pointerLatency;
     const _ps = pointerSmoothing;
     const _bl = brushLatency;
@@ -87,6 +100,25 @@
     const _pt = pathType;
     if (mounted) {
       recomputeTracks();
+    }
+  });
+
+  // Manage screen lifecycle reactively
+  $effect(() => {
+    const _sm = screenMode;
+    const _sr = screenResolution;
+    if (!mounted) return;
+
+    if (screenMode) {
+      const sw = screenResolution;
+      const sh = Math.round(sw * (10 / 16));
+      if (!screen) {
+        screen = createScreen(sw, sh);
+      } else if (screen.width !== sw || screen.height !== sh) {
+        resizeScreen(screen, sw, sh);
+      }
+    } else {
+      screen = null;
     }
   });
 
@@ -110,7 +142,11 @@
     };
     window.addEventListener('resize', onResize);
 
-    function render() {
+    function render(timestamp) {
+      // Compute real dt for screen refresh timing
+      const dt = lastFrameTime ? (timestamp - lastFrameTime) : 16.67;
+      lastFrameTime = timestamp;
+
       time += penSpeed * TIME_STEP_SCALE;
       const dpr = window.devicePixelRatio || 1;
       const W = logicalW;
@@ -131,7 +167,7 @@
       ctx.fillStyle = COLORS.background;
       ctx.fillRect(0, 0, W, H);
 
-      // Deterministic tracks (back to front)
+      // Deterministic tracks (back to front, always full-res)
       if (showTrackA) {
         drawTrack(ctx, trackA, COLORS.circleA + '80');
       }
@@ -142,18 +178,58 @@
         drawTrack(ctx, trackC, COLORS.circleC + '80');
       }
 
-      // Brush stroke trail
-      if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
+      if (screenMode && screen) {
+        // === SCREEN MODE ===
 
-      // Draw elements back to front
-      drawPosition(ctx, posC, 'c', showCircleC, showC);
-      if (showPointer) {
-        if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y);
-        else drawPointer(ctx, posB.x, posB.y);
+        // Check if the simulated screen should refresh
+        const doRefresh = shouldRefresh(screen, dt, screenRefreshRate);
+
+        if (doRefresh) {
+          // Clear screen canvas to transparent (so tracks show through)
+          screen.ctx.clearRect(0, 0, screen.width, screen.height);
+
+          // Draw screen-layer elements at screen resolution
+          // Scale transform maps logical coords -> screen pixel coords
+          screen.ctx.save();
+          screen.ctx.scale(screen.width / W, screen.height / H);
+
+          if (showBrushStroke) drawBrushStroke(screen.ctx, brushTrail, brushSize, smoothStroke);
+          if (showPointer) {
+            if (pointerStyle === 'crosshair') drawCrosshair(screen.ctx, posB.x, posB.y);
+            else drawPointer(screen.ctx, posB.x, posB.y);
+          }
+
+          screen.ctx.restore();
+
+          // Apply response time blending (ghosting)
+          commitFrame(screen, screenResponseTime, 1000 / screenRefreshRate);
+        }
+
+        // Composite screen layer onto main canvas (every frame — LCD hold behavior)
+        renderScreenToMain(ctx, screen, W, H, showPixelGrid, showIpsGlow);
+
+        // Draw ideal overlays on top (ground truth elements)
+        drawPosition(ctx, posC, 'c', showCircleC, showC);
+        drawPosition(ctx, posB, 'b', showCircleB, showB);
+        drawPen(ctx, posA.x, posA.y);
+        drawPosition(ctx, posA, 'a', showCircleA, showA);
+
+      } else {
+        // === ORIGINAL PATH ===
+
+        // Brush stroke trail
+        if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
+
+        // Draw elements back to front
+        drawPosition(ctx, posC, 'c', showCircleC, showC);
+        if (showPointer) {
+          if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y);
+          else drawPointer(ctx, posB.x, posB.y);
+        }
+        drawPosition(ctx, posB, 'b', showCircleB, showB);
+        drawPen(ctx, posA.x, posA.y);
+        drawPosition(ctx, posA, 'a', showCircleA, showA);
       }
-      drawPosition(ctx, posB, 'b', showCircleB, showB);
-      drawPen(ctx, posA.x, posA.y);
-      drawPosition(ctx, posA, 'a', showCircleA, showA);
 
       // Blit offscreen buffer to visible canvas (pixel-to-pixel, no transform)
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -162,7 +238,7 @@
       animFrame = requestAnimationFrame(render);
     }
 
-    render();
+    animFrame = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animFrame);

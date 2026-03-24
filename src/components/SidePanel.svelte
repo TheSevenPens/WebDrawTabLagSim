@@ -13,6 +13,9 @@
     showCircleC = $bindable(),
     showBrushStroke = $bindable(),
     smoothStroke = $bindable(),
+    screenMode = $bindable(),
+    showPixelGrid = $bindable(),
+    showIpsGlow = $bindable(),
   } = $props();
 </script>
 
@@ -44,6 +47,12 @@
     <label><input type="checkbox" bind:checked={showCircleC}> Circle c</label>
     <label><input type="checkbox" bind:checked={showBrushStroke}> Brush stroke</label>
     <label><input type="checkbox" bind:checked={smoothStroke}> Smooth stroke</label>
+    <div class="legend-spacer"></div>
+    <label><input type="checkbox" bind:checked={screenMode}> Screen mode</label>
+    {#if screenMode}
+      <label><input type="checkbox" bind:checked={showPixelGrid}> Pixel grid</label>
+      <label><input type="checkbox" bind:checked={showIpsGlow}> IPS glow</label>
+    {/if}
   </div>
 </div>
 

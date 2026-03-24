@@ -29,6 +29,14 @@
   let showTrackB = $state(true);
   let showTrackC = $state(true);
   let showBrushStroke = $state(true);
+
+  // Screen simulation
+  let screenMode = $state(false);
+  let screenResolution = $state(160);
+  let screenRefreshRate = $state(60);
+  let screenResponseTime = $state(5);
+  let showPixelGrid = $state(false);
+  let showIpsGlow = $state(false);
 </script>
 
 <h1>Drawing Tablet Lag Visualizer</h1>
@@ -41,6 +49,9 @@
     bind:showCircleA bind:showCircleB bind:showCircleC
     bind:showBrushStroke
     bind:smoothStroke
+    bind:screenMode
+    bind:showPixelGrid
+    bind:showIpsGlow
   />
   <Canvas
     {pointerLatency} {pointerSmoothing}
@@ -57,6 +68,12 @@
     {brushSpacing}
     {smoothStroke}
     {brushTrailLength}
+    {screenMode}
+    {screenResolution}
+    {screenRefreshRate}
+    {screenResponseTime}
+    {showPixelGrid}
+    {showIpsGlow}
   />
 </div>
 
@@ -69,6 +86,10 @@
   bind:reportRate
   bind:brushSpacing
   bind:brushTrailLength
+  {screenMode}
+  bind:screenResolution
+  bind:screenRefreshRate
+  bind:screenResponseTime
 />
 
 <style>
