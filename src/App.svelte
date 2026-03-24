@@ -22,6 +22,7 @@
   let showTrackA = $state(true);
   let showTrackB = $state(true);
   let showTrackC = $state(true);
+  let showBrushStroke = $state(true);
 </script>
 
 <h1>Drawing Tablet Lag Visualizer</h1>
@@ -32,6 +33,7 @@
     bind:showPointer bind:pointerStyle
     bind:showTrackA bind:showTrackB bind:showTrackC
     bind:showCircleA bind:showCircleB bind:showCircleC
+    bind:showBrushStroke
   />
   <Canvas
     {pointerLatency} {pointerSmoothing}
@@ -41,6 +43,7 @@
     {showPointer} {pointerStyle}
     {showCircleA} {showCircleB} {showCircleC}
     {showTrackA} {showTrackB} {showTrackC}
+    {showBrushStroke}
   />
 </div>
 

@@ -10,8 +10,8 @@ export const COLORS = {
   dashedLine: '#887860',
   penBody: ['#1480e0', '#1a6fc4', '#0e5090'],
   penTip: '#0e5090',
-  brushStroke: [150, 120, 90],
-  brushHighlight: [200, 170, 140],
+  brushStroke: [60, 140, 130],
+  brushHighlight: [110, 190, 180],
 };
 
 export const HISTORY_SIZE = 400;

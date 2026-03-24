@@ -11,6 +11,7 @@
     showCircleA = $bindable(),
     showCircleB = $bindable(),
     showCircleC = $bindable(),
+    showBrushStroke = $bindable(),
   } = $props();
 </script>
 
@@ -40,6 +41,7 @@
     <label><input type="checkbox" bind:checked={showCircleA}> Circle a</label>
     <label><input type="checkbox" bind:checked={showCircleB}> Circle b</label>
     <label><input type="checkbox" bind:checked={showCircleC}> Circle c</label>
+    <label><input type="checkbox" bind:checked={showBrushStroke}> Brush stroke</label>
   </div>
 </div>
 

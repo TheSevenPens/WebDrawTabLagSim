@@ -28,6 +28,7 @@
     showTrackA,
     showTrackB,
     showTrackC,
+    showBrushStroke,
   } = $props();
 
   let canvasEl;
@@ -121,7 +122,7 @@
       }
 
       // Brush stroke trail
-      drawBrushStroke(ctx, brushTrail);
+      if (showBrushStroke) drawBrushStroke(ctx, brushTrail);
 
       // Draw elements back to front
       drawPosition(ctx, posC, 'c', showCircleC, showC);
