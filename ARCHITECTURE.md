@@ -23,7 +23,8 @@ src/
     ├── constants.js            — Colors, font, sizes, offsets, buffer limits
     ├── simulation.js           — Lag pipeline: delay + EMA + report rate for B and C
     ├── animation.js            — Path functions (Lissajous, Circle, Star), track pre-computation
-    └── drawing.js              — All canvas drawing primitives + brush stroke rendering
+    ├── drawing.js              — All canvas drawing primitives + brush stroke rendering
+    └── screen.js               — Simulated screen: pixelation, refresh rate, response time, grid, glow
 .github/workflows/deploy.yml   — GitHub Actions: build and deploy to Pages
 ARCHITECTURE.md                 — This file
 FUTURES.md                      — Ideas for improvements
@@ -40,8 +41,8 @@ FUTURES.md                      — Ideas for improvements
 │  - Toggles   │                                   │
 ├──────────────┴──────────────────────────────────┤
 │              Controls (HTML)                     │
-│  [Pointer Lat+Smooth+Rate] [Brush Lat+Smooth]   │
-│  [Speed] [Size] [Spacing] [Trail] [Path]         │
+│  [Input] [Pointer Lat+Smooth+Rate] [Brush]       │
+│  [Brush Engine] [Display (if screen mode on)]    │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -80,6 +81,10 @@ B (OS pointer) ──[brush latency + brush smoothing]──→ C (brush positio
                                                      or straight lineTo
                                                         ↓
                                           drawBrushStroke(brushSize, smoothStroke)
+                                                        ↓
+                                              screenMode? → render to low-res screen canvas
+                                                           → response time blending (ghosting)
+                                                           → composite with pixel grid / IPS glow
 ```
 
 ## Brush Stroke Rendering
@@ -187,6 +192,46 @@ Because A follows a periodic path, the steady-state paths of B and C are also pe
 
 Tracks are recomputed reactively via `$effect` whenever latency, smoothing, pen speed, or path type change. Track B is only displayed when pointer smoothing > 0 (otherwise identical to Track A). Same for Track C and brush smoothing.
 
+## Screen Simulation
+
+When **Screen mode** is enabled, the OS pointer and brush stroke are rendered onto a simulated low-resolution display instead of being drawn directly at full resolution. This models what a real physical screen does to the signal.
+
+### Architecture
+
+A separate small offscreen canvas (`screen.canvas`) represents the simulated display. Its resolution is controlled by the **Resolution** slider (80–320 pixels wide, 16:10 aspect). The existing drawing functions (`drawBrushStroke`, `drawPointer`, `drawCrosshair`) are reused unmodified — a `ctx.scale()` transform maps logical coordinates to screen pixel coordinates.
+
+### Two-Layer Rendering
+
+In screen mode, the render loop splits into two layers:
+
+1. **Full-resolution layer** (main canvas): Background, tracks, pen, labels, circles — the "ground truth" overlays.
+2. **Screen layer** (small canvas → scaled up): Brush stroke and OS pointer — what the user actually sees on their monitor.
+
+The screen layer is composited onto the main canvas with `imageSmoothingEnabled = false` for crisp nearest-neighbor upscaling, producing visible blocky pixels.
+
+### Screen Refresh Rate
+
+The screen only updates at the configured refresh rate (10–144 Hz). Between refreshes, the screen holds its last frame (LCD "sample-and-hold" behavior). A time-based accumulator gates when `shouldRefresh()` returns true, following the same pattern as the tablet report rate.
+
+### Pixel Response Time (Ghosting)
+
+Models LCD pixel transition speed. A `Float32Array` color buffer stores the persistent pixel state. On each refresh, new pixel values are blended into the buffer using:
+
+```
+alpha = 1 - exp(-dt / responseTime)
+pixel = pixel + alpha × (newPixel - pixel)
+```
+
+Fast response (1ms) → near-instant transition. Slow response (50ms) → visible ghosting/persistence as pixels gradually shift from their old color to the new one.
+
+### Pixel Grid
+
+When enabled, thin semi-transparent lines are drawn at every pixel boundary after compositing, making the individual simulated pixels clearly delineated.
+
+### IPS Glow
+
+A subtle bloom effect: the scaled-up screen image is drawn to a temporary canvas, blurred proportional to pixel size, then composited with `globalCompositeOperation = 'lighter'` at low alpha. This simulates the diffuse backlight bleed characteristic of IPS panels.
+
 ## HiDPI Rendering
 
 The canvas backing store is sized at `logicalWidth × dpr` by `logicalHeight × dpr` (where `dpr = devicePixelRatio`), while CSS dimensions remain at logical size. Each frame applies `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` so all drawing code uses logical coordinates. The transform is reset before blitting the offscreen buffer.
@@ -210,6 +255,12 @@ showPointer, pointerStyle           — OS pointer visibility and style (mouse/c
 showCircleA/B/C                     — Dotted circle visibility
 showTrackA/B/C                      — Track visibility
 showBrushStroke                     — Brush stroke visibility
+screenMode                          — Enable simulated screen layer
+screenResolution                    — Screen width in simulated pixels (80–320)
+screenRefreshRate                   — Screen refresh rate in Hz (10–144)
+screenResponseTime                  — Pixel response time in ms (1–50)
+showPixelGrid                       — Show grid lines between simulated pixels
+showIpsGlow                         — Enable IPS glow bloom effect
 ```
 
 State flows down via props. `SidePanel` and `Controls` use `bind:` for two-way binding. `Canvas` receives read-only props.
@@ -232,8 +283,11 @@ All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with 
 - `evalBezier(p0x, p0y, cp1x, cp1y, cp2x, cp2y, p1x, p1y, s)` — De Casteljau evaluation at parameter s
 - `drawBrushStroke(ctx, trail, brushSize, smoothStroke)` — Main stroke renderer with branching for smooth/straight modes
 
+### `src/lib/screen.js`
+Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `shouldRefresh(screen, dtMs, hz)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid, showGlow)`, `drawPixelGrid(ctx, ...)`, `drawIpsGlow(ctx, ...)`.
+
 ### `src/components/Canvas.svelte`
-The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change.
+The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top.
 
 ### `src/components/SidePanel.svelte`
 Legend text + checkbox/dropdown controls (including smooth stroke toggle). All toggle props use `$bindable()`.
@@ -245,7 +299,7 @@ Reusable slider: label + range input (with configurable step) + value display to
 Composite component: groups a Latency slider and a Smoothing slider under a shared label. Used for both the Pointer and Brush control groups.
 
 ### `src/components/Controls.svelte`
-Composes two `LatencySmoothing` groups (Pointer, Brush). The Pointer group includes Latency, Smoothing, and Report Rate (Hz) stacked together since report rate is a pointer-related parameter. A third column contains individual sliders for Pen Speed, Brush Size, Brush Spacing, Brush Trail, and a Path dropdown.
+Composes four control groups: User Input (Pen Speed + Path), Pointer (Latency + Smoothing + Report Rate), Brush (Latency + Smoothing), and Brush Engine (Size + Spacing + Trail). When screen mode is enabled, a fifth Display group appears with Resolution, Refresh Rate, and Response Time sliders.
 
 ### `src/App.svelte`
 Root component. Declares all `$state()` runes. Composes `SidePanel`, `Canvas`, `Controls` with `bind:` directives.
@@ -289,7 +343,8 @@ App.svelte
 │   ├── lib/constants.js
 │   ├── lib/simulation.js ─── lib/constants.js, lib/animation.js
 │   ├── lib/drawing.js ────── lib/constants.js
-│   └── lib/animation.js ──── lib/constants.js
+│   ├── lib/animation.js ──── lib/constants.js
+│   └── lib/screen.js ─────── lib/constants.js
 ├── SidePanel.svelte
 └── Controls.svelte
     ├── Slider.svelte

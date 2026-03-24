@@ -18,6 +18,19 @@ Ideas for fixes, improvements, and new directions.
 - ~~**Higher DPI rendering**: Use `devicePixelRatio` to render at native resolution on Retina/HiDPI displays for sharper lines and text.~~ Done — `Canvas.svelte` scales backing store by `devicePixelRatio`.
 - **Track styling options**: Allow dashed or dotted tracks, adjustable track thickness, or gradient coloring along the track to indicate direction of travel.
 
+## Screen Simulation
+
+- ~~**Screen mode**: Render pointer and brush stroke onto a simulated low-resolution pixelated display.~~ Done — toggleable via Screen mode checkbox.
+- ~~**Screen refresh rate**: Simulate display update frequency (10–144 Hz) with sample-and-hold behavior between refreshes.~~ Done — Refresh Rate slider.
+- ~~**Pixel response time**: Model LCD pixel transition speed with per-pixel exponential blending for ghosting effects.~~ Done — Response Time slider (1–50ms).
+- ~~**Pixel grid**: Show grid lines between simulated pixels.~~ Done — Pixel grid checkbox.
+- ~~**IPS glow**: Bloom effect simulating IPS panel backlight bleed.~~ Done — IPS glow checkbox.
+- **RGB sub-pixel rendering**: Render each simulated pixel as three vertical R/G/B sub-columns, modeling real LCD sub-pixel structure.
+- **Panel type presets**: Preset configurations for common panel types (TN, IPS, VA, OLED) with different response time curves and color characteristics.
+- **Overdrive simulation**: Model the overshoot artifacts that occur when LCD panels use aggressive pixel transition acceleration.
+- **Motion blur visualization**: Show how sample-and-hold displays create perceived motion blur proportional to 1/refresh_rate.
+- **Variable refresh rate (VRR)**: Simulate adaptive sync / G-Sync / FreeSync where refresh rate matches the content update rate.
+
 ## Brush Engine Enhancements
 
 - ~~**Brush spacing (distance threshold)**: Simulate brush engines that only render when the cursor has moved a minimum distance.~~ Done — Brush Spacing slider (0–50px).
