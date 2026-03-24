@@ -1,7 +1,10 @@
-import { COLORS, HISTORY_SIZE, BRUSH_TRAIL_MAX, TIME_STEP_SCALE } from './constants.js';
+import { COLORS, TIME_STEP_SCALE } from './constants.js';
 import { state } from './state.js';
-import { posHistory, brushTrail, getLaggedPos, getPathSegment, pushHistory, pushBrushTrail } from './history.js';
-import { drawBrushStroke, drawDashedLine, drawDashedPath, drawPosition, drawPointer, drawCrosshair, drawPen } from './drawing.js';
+import {
+  brushTrail, pushHistory, pushBrushTrail,
+  computeCurrentPositions, forwardSimulateAtoB, forwardSimulateBtoC, preWarm,
+} from './simulation.js';
+import { drawBrushStroke, drawDashedPath, drawPosition, drawPointer, drawCrosshair, drawPen } from './drawing.js';
 import { autoPosition } from './animation.js';
 import { initControls } from './controls.js';
 
@@ -28,6 +31,11 @@ initControls();
 // --- Time ---
 let time = 0;
 
+// --- Pre-warm ---
+const W0 = canvas.width;
+const H0 = canvas.height;
+time = preWarm(W0, H0);
+
 // --- Main render loop ---
 function render() {
   time += state.penSpeed * TIME_STEP_SCALE;
@@ -37,26 +45,17 @@ function render() {
   const posA = autoPosition(time, W, H);
   pushHistory(posA);
 
-  const posB = getLaggedPos(state.pointerLag, W, H);
-  const posC = getLaggedPos(state.pointerLag + state.brushLag, W, H);
+  const { posB, posC } = computeCurrentPositions(W, H);
   pushBrushTrail(posC);
 
   // Background
   ctx.fillStyle = COLORS.background;
   ctx.fillRect(0, 0, W, H);
 
-  // Layers back to front
+  // Brush stroke trail
   drawBrushStroke(ctx, brushTrail);
 
-  if (state.showLineAB) {
-    const pathAB = getPathSegment(0, state.pointerLag);
-    drawDashedPath(ctx, pathAB);
-  }
-  if (state.showLineBC) {
-    const pathBC = getPathSegment(state.pointerLag, state.pointerLag + state.brushLag);
-    drawDashedPath(ctx, pathBC);
-  }
-
+  // Draw elements back to front
   drawPosition(ctx, posC, 'c', state.showCircleC, state.showC);
   if (state.showPointer) {
     if (state.pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y);
@@ -72,22 +71,4 @@ function render() {
   requestAnimationFrame(render);
 }
 
-// --- Pre-warm animation ---
-function preWarm() {
-  const W = canvas.width;
-  const H = canvas.height;
-  for (let i = 0; i < HISTORY_SIZE; i++) {
-    time += state.penSpeed * TIME_STEP_SCALE;
-    pushHistory(autoPosition(time, W, H));
-  }
-  const totalLag = Math.round(state.pointerLag + state.brushLag);
-  for (let i = 0; i < BRUSH_TRAIL_MAX; i++) {
-    const idx = Math.max(0, posHistory.length - 1 - (BRUSH_TRAIL_MAX - i) - totalLag);
-    if (idx >= 0 && idx < posHistory.length) {
-      brushTrail.push({ x: posHistory[idx].x, y: posHistory[idx].y });
-    }
-  }
-}
-
-preWarm();
 render();

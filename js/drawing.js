@@ -171,9 +171,11 @@ export function drawBrushStroke(ctx, trail) {
   ctx.restore();
 }
 
+const CIRCLE_COLOR_MAP = { a: 'circleA', b: 'circleB', c: 'circleC' };
+
 export function drawPosition(ctx, pos, key, showCircle, showLabel) {
   const offset = LABEL_OFFSETS[key];
   const radius = CIRCLE_RADII[key];
-  if (showCircle) drawDashedCircle(ctx, pos.x, pos.y, radius, COLORS.circle);
+  if (showCircle) drawDashedCircle(ctx, pos.x, pos.y, radius, COLORS[CIRCLE_COLOR_MAP[key]]);
   if (showLabel) drawLabel(ctx, key, pos.x + offset.dx, pos.y + offset.dy, offset.size);
 }

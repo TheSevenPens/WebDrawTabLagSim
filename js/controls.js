@@ -16,12 +16,13 @@ function bindCheckbox(id, stateKey) {
 }
 
 export function initControls() {
-  bindSlider('pointerLag', 'pointerLag');
-  bindSlider('brushLag', 'brushLag');
+  bindSlider('pointerLatency', 'pointerLatency');
+  bindSlider('pointerSmoothing', 'pointerSmoothing');
+  bindSlider('brushLatency', 'brushLatency');
+  bindSlider('brushSmoothing', 'brushSmoothing');
   bindSlider('penSpeed', 'penSpeed');
-  bindCheckbox('showLineAB', 'showLineAB');
-  bindCheckbox('showLineBC', 'showLineBC');
-  bindCheckbox('showA', 'showA');
+
+bindCheckbox('showA', 'showA');
   bindCheckbox('showB', 'showB');
   bindCheckbox('showC', 'showC');
   bindCheckbox('showPointer', 'showPointer');

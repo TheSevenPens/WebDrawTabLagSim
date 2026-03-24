@@ -1,13 +1,15 @@
 export const FONT = '"Google Sans Flex", sans-serif';
 
 export const COLORS = {
-  background: '#e8b84b',
-  circle: '#d04040',
+  background: '#c8cdd3',
+  circleA: '#1480e0',
+  circleB: '#d04040',
+  circleC: '#2e8b57',
   label: '#222',
   legend: '#444',
   dashedLine: '#887860',
   penBody: ['#1480e0', '#1a6fc4', '#0e5090'],
-  penTip: '#c03030',
+  penTip: '#0e5090',
   brushStroke: [150, 120, 90],
   brushHighlight: [200, 170, 140],
 };

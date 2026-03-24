@@ -101,13 +101,11 @@
       <div>b: OS pointer</div>
       <div>c: brush stroke</div>
       <div class="legend-spacer"></div>
-      <div>a → b = pointer lag</div>
-      <div>b → c = brush lag</div>
+      <div>a → b = pointer latency + smoothing</div>
+      <div>b → c = brush latency + smoothing</div>
     </div>
     <div class="checkboxes">
-      <label><input type="checkbox" id="showLineAB" checked> Line a→b</label>
-      <label><input type="checkbox" id="showLineBC" checked> Line b→c</label>
-      <label><input type="checkbox" id="showA" checked> Label a</label>
+<label><input type="checkbox" id="showA" checked> Label a</label>
       <label><input type="checkbox" id="showB" checked> Label b</label>
       <label><input type="checkbox" id="showC" checked> Label c</label>
       <label><input type="checkbox" id="showPointer" checked> OS pointer</label>
@@ -126,14 +124,24 @@
 </div>
 <div class="controls">
   <div class="slider-group">
-    <label>Pointer Lag (a → b)</label>
-    <input type="range" id="pointerLag" min="0" max="80" value="25">
-    <span class="value" id="pointerLagVal">25</span>
+    <label>Pointer Latency (a → b)</label>
+    <input type="range" id="pointerLatency" min="0" max="80" value="25">
+    <span class="value" id="pointerLatencyVal">25</span>
   </div>
   <div class="slider-group">
-    <label>Brush Lag (b → c)</label>
-    <input type="range" id="brushLag" min="0" max="80" value="35">
-    <span class="value" id="brushLagVal">35</span>
+    <label>Pointer Smoothing</label>
+    <input type="range" id="pointerSmoothing" min="0" max="50" value="0">
+    <span class="value" id="pointerSmoothingVal">0</span>
+  </div>
+  <div class="slider-group">
+    <label>Brush Latency (b → c)</label>
+    <input type="range" id="brushLatency" min="0" max="80" value="35">
+    <span class="value" id="brushLatencyVal">35</span>
+  </div>
+  <div class="slider-group">
+    <label>Brush Smoothing</label>
+    <input type="range" id="brushSmoothing" min="0" max="50" value="0">
+    <span class="value" id="brushSmoothingVal">0</span>
   </div>
   <div class="slider-group">
     <label>Pen Speed</label>
