@@ -58,7 +58,7 @@
       <div class="group-title">Display</div>
       <Slider label="Resolution (px)" min={80} max={320} step={10} bind:value={screenResolution} />
       <Slider label="Refresh Rate (Hz)" min={10} max={144} step={1} bind:value={screenRefreshRate} />
-      <Slider label="Response Time (ms)" min={1} max={50} step={1} bind:value={screenResponseTime} />
+      <Slider label="Response Time (ms)" min={1} max={200} step={1} bind:value={screenResponseTime} />
     </div>
   {/if}
 </div>

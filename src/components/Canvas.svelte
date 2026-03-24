@@ -4,7 +4,7 @@
   import { autoPosition, computeTrackA, computeSmoothedTrack } from '$lib/animation.js';
   import {
     brushTrail, pushHistory, pushBrushTrail,
-    computeCurrentPositions, preWarm,
+    computeCurrentPositions, preWarm, resetSimulation,
   } from '$lib/simulation.js';
   import {
     drawBrushStroke, drawTrack, drawPosition,
@@ -45,8 +45,10 @@
     screenResponseTime,
     showPixelGrid,
     showIpsGlow,
+    screenAntiAlias,
   } = $props();
 
+  let containerEl;
   let canvasEl;
   let displayCtx;
   let offscreen;
@@ -58,6 +60,7 @@
   let animFrame;
   let mounted = false;
   let lastFrameTime = null;
+  let isFullscreen = $state(false);
 
   // Logical (CSS) dimensions — drawing code uses these
   let logicalW = 0;
@@ -69,8 +72,14 @@
   function resize() {
     if (!canvasEl) return;
     const dpr = window.devicePixelRatio || 1;
-    logicalW = Math.min(window.innerWidth - 40, 770);
-    logicalH = Math.round(logicalW * (10 / 16));
+
+    if (isFullscreen) {
+      logicalW = window.innerWidth;
+      logicalH = window.innerHeight;
+    } else {
+      logicalW = Math.min(window.innerWidth - 40, 770);
+      logicalH = Math.round(logicalW * (10 / 16));
+    }
 
     // Set CSS display size
     canvasEl.style.width = logicalW + 'px';
@@ -81,6 +90,14 @@
     canvasEl.height = Math.round(logicalH * dpr);
     offscreen.width = canvasEl.width;
     offscreen.height = canvasEl.height;
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      containerEl.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
   }
 
   function recomputeTracks() {
@@ -123,6 +140,8 @@
   });
 
   onMount(() => {
+    resetSimulation();
+
     displayCtx = canvasEl.getContext('2d');
     offscreen = document.createElement('canvas');
     ctx = offscreen.getContext('2d');
@@ -141,6 +160,13 @@
       recomputeTracks();
     };
     window.addEventListener('resize', onResize);
+
+    const onFullscreenChange = () => {
+      isFullscreen = !!document.fullscreenElement;
+      resize();
+      recomputeTracks();
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
 
     function render(timestamp) {
       // Compute real dt for screen refresh timing
@@ -191,6 +217,7 @@
           // Draw screen-layer elements at screen resolution
           // Scale transform maps logical coords -> screen pixel coords
           screen.ctx.save();
+          screen.ctx.imageSmoothingEnabled = screenAntiAlias;
           screen.ctx.scale(screen.width / W, screen.height / H);
 
           if (showBrushStroke) drawBrushStroke(screen.ctx, brushTrail, brushSize, smoothStroke);
@@ -243,16 +270,60 @@
     return () => {
       cancelAnimationFrame(animFrame);
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
     };
   });
 </script>
 
-<canvas bind:this={canvasEl}></canvas>
+<div class="canvas-container" bind:this={containerEl}>
+  <canvas bind:this={canvasEl}></canvas>
+  <button class="fullscreen-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+    {isFullscreen ? '✕' : '⛶'}
+  </button>
+</div>
 
 <style>
+  .canvas-container {
+    position: relative;
+    display: inline-block;
+  }
+  .canvas-container:fullscreen {
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   canvas {
     border-radius: 8px;
     cursor: default;
     display: block;
+  }
+  .canvas-container:fullscreen canvas {
+    border-radius: 0;
+  }
+  .fullscreen-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .canvas-container:hover .fullscreen-btn,
+  .canvas-container:fullscreen .fullscreen-btn {
+    opacity: 1;
+  }
+  .fullscreen-btn:hover {
+    background: rgba(0, 0, 0, 0.6);
   }
 </style>

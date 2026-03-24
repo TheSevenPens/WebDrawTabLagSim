@@ -16,6 +16,9 @@
     screenMode = $bindable(),
     showPixelGrid = $bindable(),
     showIpsGlow = $bindable(),
+    screenAntiAlias = $bindable(),
+    onRestart,
+    onResetAll,
   } = $props();
 </script>
 
@@ -52,7 +55,12 @@
     {#if screenMode}
       <label><input type="checkbox" bind:checked={showPixelGrid}> Pixel grid</label>
       <label><input type="checkbox" bind:checked={showIpsGlow}> IPS glow</label>
+      <label><input type="checkbox" bind:checked={screenAntiAlias}> Anti-aliasing</label>
     {/if}
+  </div>
+  <div class="buttons">
+    <button onclick={onRestart}>Restart</button>
+    <button onclick={onResetAll}>Reset All</button>
   </div>
 </div>
 
@@ -92,5 +100,23 @@
   select {
     font-size: 0.8rem;
     font-family: inherit;
+  }
+  .buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .buttons button {
+    font-size: 0.78rem;
+    font-family: inherit;
+    font-weight: 600;
+    padding: 4px 10px;
+    border: 1px solid #666;
+    border-radius: 4px;
+    background: #444;
+    color: #ddd;
+    cursor: pointer;
+  }
+  .buttons button:hover {
+    background: #555;
   }
 </style>

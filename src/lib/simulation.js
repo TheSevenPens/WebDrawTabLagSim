@@ -24,6 +24,19 @@ import { autoPosition } from './animation.js';
 export const posHistory = [];
 export const brushTrail = [];
 
+/**
+ * Reset all simulation state — call when restarting the animation.
+ */
+export function resetSimulation() {
+  posHistory.length = 0;
+  brushTrail.length = 0;
+  emaB.x = null; emaB.y = null;
+  emaC.x = null; emaC.y = null;
+  posBHistory.length = 0;
+  frameCounter = 0;
+  lastReportedB = null;
+}
+
 // --- EMA filter state for B and C ---
 const emaB = { x: null, y: null };
 const emaC = { x: null, y: null };
