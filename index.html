@@ -108,109 +108,123 @@
 </div>
 
 <script>
+// --- Constants ---
+const FONT = '"Google Sans Flex", sans-serif';
+const COLORS = {
+  background: '#e8b84b',
+  circle: '#d04040',
+  label: '#222',
+  legend: '#444',
+  dashedLine: '#887860',
+  pointer: '#7a7060',
+  penBody: ['#1480e0', '#1a6fc4', '#0e5090'],
+  penTip: '#c03030',
+  brushStroke: [150, 120, 90],
+  brushHighlight: [200, 170, 140],
+};
+const HISTORY_SIZE = 400;
+const BRUSH_TRAIL_MAX = 180;
+const TIME_STEP_SCALE = 0.001;
+
+// Position configs for labels relative to their circle centers
+const LABEL_OFFSETS = {
+  a: { dx: -22, dy: 24, size: 22 },
+  b: { dx: 0, dy: 34, size: 22 },
+  c: { dx: 20, dy: 26, size: 24 },
+};
+const CIRCLE_RADII = { a: 16, b: 20, c: 24 };
+
+// Legend lines drawn on the canvas
+const LEGEND_LINES = [
+  'a: pen tip   b: OS pointer   c: brush stroke',
+  'a \u2192 b = pointer lag',
+  'b \u2192 c = brush lag',
+];
+
+// --- State ---
+const state = {
+  pointerLag: 25,
+  brushLag: 35,
+  penSpeed: 7,
+  showLines: true,
+  showA: true,
+  showB: true,
+  showC: true,
+  showCircleA: true,
+  showCircleB: true,
+  showCircleC: true,
+};
+
+let posHistory = [];
+let brushTrail = [];
+let time = 0;
+
+// --- Canvas setup ---
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
-// Sizing
 function resize() {
   const w = Math.min(window.innerWidth - 40, 1100);
-  const h = Math.round(w * 0.5);
   canvas.width = w;
-  canvas.height = h;
+  canvas.height = Math.round(w * 0.5);
 }
 resize();
 window.addEventListener('resize', resize);
 
-// State
-let pointerLag = 25;
-let brushLag = 35;
-let penSpeed = 7;
-let showLines = true;
-let showA = true;
-let showB = true;
-let showC = true;
-let showCircleA = true;
-let showCircleB = true;
-let showCircleC = true;
-const HISTORY_SIZE = 400;
-let posHistory = [];
-let brushTrail = [];
-const BRUSH_TRAIL_MAX = 180;
-let time = 0;
+// --- Controls binding ---
+function bindSlider(id, stateKey) {
+  const slider = document.getElementById(id);
+  const display = document.getElementById(id + 'Val');
+  slider.addEventListener('input', () => {
+    state[stateKey] = +slider.value;
+    display.textContent = slider.value;
+  });
+}
 
-// Slider events
-const pSlider = document.getElementById('pointerLag');
-const bSlider = document.getElementById('brushLag');
-const pVal = document.getElementById('pointerLagVal');
-const bVal = document.getElementById('brushLagVal');
-const sSlider = document.getElementById('penSpeed');
-const sVal = document.getElementById('penSpeedVal');
-pSlider.addEventListener('input', () => { pointerLag = +pSlider.value; pVal.textContent = pSlider.value; });
-bSlider.addEventListener('input', () => { brushLag = +bSlider.value; bVal.textContent = bSlider.value; });
-sSlider.addEventListener('input', () => { penSpeed = +sSlider.value; sVal.textContent = sSlider.value; });
-document.getElementById('showLines').addEventListener('change', (e) => { showLines = e.target.checked; });
-document.getElementById('showA').addEventListener('change', (e) => { showA = e.target.checked; });
-document.getElementById('showB').addEventListener('change', (e) => { showB = e.target.checked; });
-document.getElementById('showC').addEventListener('change', (e) => { showC = e.target.checked; });
-document.getElementById('showCircleA').addEventListener('change', (e) => { showCircleA = e.target.checked; });
-document.getElementById('showCircleB').addEventListener('change', (e) => { showCircleB = e.target.checked; });
-document.getElementById('showCircleC').addEventListener('change', (e) => { showCircleC = e.target.checked; });
+function bindCheckbox(id, stateKey) {
+  document.getElementById(id).addEventListener('change', (e) => {
+    state[stateKey] = e.target.checked;
+  });
+}
 
-// Auto path: sweeping curve that shows lag well
+bindSlider('pointerLag', 'pointerLag');
+bindSlider('brushLag', 'brushLag');
+bindSlider('penSpeed', 'penSpeed');
+bindCheckbox('showLines', 'showLines');
+bindCheckbox('showA', 'showA');
+bindCheckbox('showB', 'showB');
+bindCheckbox('showC', 'showC');
+bindCheckbox('showCircleA', 'showCircleA');
+bindCheckbox('showCircleB', 'showCircleB');
+bindCheckbox('showCircleC', 'showCircleC');
+
+// --- Animation path ---
 function autoPosition(t) {
-  const W = canvas.width;
-  const H = canvas.height;
-  const cx = W * 0.5;
-  const cy = H * 0.5;
-  // Lissajous-like curve filling most of canvas
+  const cx = canvas.width * 0.5;
+  const cy = canvas.height * 0.5;
   return {
-    x: cx + W * 0.35 * Math.sin(t * 1.1),
-    y: cy + H * 0.3 * Math.sin(t * 1.9)
+    x: cx + canvas.width * 0.35 * Math.sin(t * 1.1),
+    y: cy + canvas.height * 0.3 * Math.sin(t * 1.9),
   };
 }
 
-// Get lagged position from history
+// --- History helpers ---
 function getLaggedPos(lagFrames) {
   const idx = Math.max(0, posHistory.length - 1 - Math.round(lagFrames));
   return posHistory[idx] || posHistory[posHistory.length - 1] || { x: canvas.width / 2, y: canvas.height / 2 };
 }
 
-// Draw pen stylus at position a
-function drawPen(x, y) {
-  const penH = 55;
-  const penW = 12;
-  ctx.save();
-  // Shadow
-  ctx.shadowColor = 'rgba(0,0,0,0.2)';
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 2;
-  // Pen body - gradient
-  const grad = ctx.createLinearGradient(x - penW/2, y - penH, x + penW/2, y);
-  grad.addColorStop(0, '#1480e0');
-  grad.addColorStop(0.7, '#1a6fc4');
-  grad.addColorStop(1, '#0e5090');
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(x - penW/2, y - penH);
-  ctx.lineTo(x + penW/2, y - penH);
-  ctx.lineTo(x + 3, y - 5);
-  ctx.lineTo(x - 3, y - 5);
-  ctx.closePath();
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-  // Tip
-  ctx.fillStyle = '#c03030';
-  ctx.beginPath();
-  ctx.moveTo(x - 3, y - 5);
-  ctx.lineTo(x + 3, y - 5);
-  ctx.lineTo(x, y + 3);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
+function pushHistory(pos) {
+  posHistory.push({ x: pos.x, y: pos.y });
+  if (posHistory.length > HISTORY_SIZE) posHistory.shift();
 }
 
-// Draw dashed circle
+function pushBrushTrail(pos) {
+  brushTrail.push({ x: pos.x, y: pos.y });
+  if (brushTrail.length > BRUSH_TRAIL_MAX) brushTrail.shift();
+}
+
+// --- Drawing primitives ---
 function drawDashedCircle(x, y, r, color) {
   ctx.save();
   ctx.strokeStyle = color;
@@ -223,97 +237,9 @@ function drawDashedCircle(x, y, r, color) {
   ctx.restore();
 }
 
-// Draw small cursor arrow
-function drawCursorArrow(x, y, scale, alpha) {
+function drawDashedLine(x1, y1, x2, y2) {
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = '#8a7e6e';
-  ctx.strokeStyle = '#6a6050';
-  ctx.lineWidth = 0.5;
-  const s = scale;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x, y + 14*s);
-  ctx.lineTo(x + 4*s, y + 10*s);
-  ctx.lineTo(x + 7*s, y + 16*s);
-  ctx.lineTo(x + 9*s, y + 15*s);
-  ctx.lineTo(x + 6*s, y + 9*s);
-  ctx.lineTo(x + 10*s, y + 9*s);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
-// Draw OS pointer (dashed outline cursor)
-function drawPointer(x, y) {
-  ctx.save();
-  ctx.strokeStyle = '#7a7060';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([3, 3]);
-  const s = 1.3;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x, y + 18*s);
-  ctx.lineTo(x + 5*s, y + 13*s);
-  ctx.lineTo(x + 9*s, y + 21*s);
-  ctx.lineTo(x + 12*s, y + 19*s);
-  ctx.lineTo(x + 8*s, y + 11*s);
-  ctx.lineTo(x + 14*s, y + 11*s);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-}
-
-// Draw tapered brush stroke trail
-function drawBrushStroke(trail) {
-  if (trail.length < 3) return;
-  ctx.save();
-  // Draw from old to new so newest is on top
-  for (let i = 1; i < trail.length; i++) {
-    const t = i / trail.length; // 0=old, 1=newest
-    const width = 1 + t * t * 35; // quadratic taper for more dramatic shape
-    const alpha = 0.08 + t * 0.55;
-    ctx.strokeStyle = `rgba(150, 120, 90, ${alpha})`;
-    ctx.lineWidth = width;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(trail[i-1].x, trail[i-1].y);
-    ctx.lineTo(trail[i].x, trail[i].y);
-    ctx.stroke();
-  }
-  // Slight highlight on top edge of stroke
-  for (let i = Math.floor(trail.length * 0.5); i < trail.length; i++) {
-    const t = i / trail.length;
-    const width = t * t * 20;
-    ctx.strokeStyle = `rgba(200, 170, 140, ${t * 0.15})`;
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    ctx.moveTo(trail[i-1].x, trail[i-1].y - width * 0.15);
-    ctx.lineTo(trail[i].x, trail[i].y - width * 0.15);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-// Draw label with background for readability
-function drawLabel(text, x, y, fontSize) {
-  ctx.save();
-  const fs = fontSize || 22;
-  ctx.font = `bold italic ${fs}px 'Google Sans Flex', sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#222';
-  ctx.fillText(text, x, y);
-  ctx.restore();
-}
-
-// Draw dashed line between two points
-function drawDashedLine(x1, y1, x2, y2, color) {
-  ctx.save();
-  ctx.strokeStyle = color || '#887860';
+  ctx.strokeStyle = COLORS.dashedLine;
   ctx.lineWidth = 1.5;
   ctx.setLineDash([6, 5]);
   ctx.beginPath();
@@ -324,98 +250,169 @@ function drawDashedLine(x1, y1, x2, y2, color) {
   ctx.restore();
 }
 
-// Draw cursor arrow trail between two points
-function drawArrowTrail(from, to, count) {
-  if (count < 1) return;
-  for (let i = 0; i <= count; i++) {
-    const t = (i + 1) / (count + 2);
-    const x = from.x + (to.x - from.x) * t;
-    const y = from.y + (to.y - from.y) * t;
-    const alpha = 0.25 + 0.45 * (1 - t);
-    drawCursorArrow(x, y, 0.8, alpha);
-  }
+function drawLabel(text, x, y, fontSize) {
+  ctx.save();
+  ctx.font = `bold italic ${fontSize}px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = COLORS.label;
+  ctx.fillText(text, x, y);
+  ctx.restore();
 }
 
-// Main render loop
+function drawPen(x, y) {
+  const H = 55, W = 12;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.2)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  const grad = ctx.createLinearGradient(x - W / 2, y - H, x + W / 2, y);
+  grad.addColorStop(0, COLORS.penBody[0]);
+  grad.addColorStop(0.7, COLORS.penBody[1]);
+  grad.addColorStop(1, COLORS.penBody[2]);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(x - W / 2, y - H);
+  ctx.lineTo(x + W / 2, y - H);
+  ctx.lineTo(x + 3, y - 5);
+  ctx.lineTo(x - 3, y - 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = COLORS.penTip;
+  ctx.beginPath();
+  ctx.moveTo(x - 3, y - 5);
+  ctx.lineTo(x + 3, y - 5);
+  ctx.lineTo(x, y + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPointer(x, y) {
+  ctx.save();
+  ctx.strokeStyle = COLORS.pointer;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([3, 3]);
+  const s = 1.3;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y + 18 * s);
+  ctx.lineTo(x + 5 * s, y + 13 * s);
+  ctx.lineTo(x + 9 * s, y + 21 * s);
+  ctx.lineTo(x + 12 * s, y + 19 * s);
+  ctx.lineTo(x + 8 * s, y + 11 * s);
+  ctx.lineTo(x + 14 * s, y + 11 * s);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawBrushStroke(trail) {
+  if (trail.length < 3) return;
+  const [r, g, b] = COLORS.brushStroke;
+  const [hr, hg, hb] = COLORS.brushHighlight;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (let i = 1; i < trail.length; i++) {
+    const t = i / trail.length;
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.08 + t * 0.55})`;
+    ctx.lineWidth = 1 + t * t * 35;
+    ctx.beginPath();
+    ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
+    ctx.lineTo(trail[i].x, trail[i].y);
+    ctx.stroke();
+  }
+  const halfLen = Math.floor(trail.length * 0.5);
+  for (let i = halfLen; i < trail.length; i++) {
+    const t = i / trail.length;
+    const w = t * t * 20;
+    ctx.strokeStyle = `rgba(${hr}, ${hg}, ${hb}, ${t * 0.15})`;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(trail[i - 1].x, trail[i - 1].y - w * 0.15);
+    ctx.lineTo(trail[i].x, trail[i].y - w * 0.15);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawLegend(W, H) {
+  ctx.save();
+  ctx.font = `14px ${FONT}`;
+  ctx.fillStyle = COLORS.legend;
+  ctx.textAlign = 'left';
+  const x = 18;
+  const y = H - 68;
+  LEGEND_LINES.forEach((line, i) => {
+    ctx.fillText(line, x, y + i * 22);
+  });
+  ctx.restore();
+}
+
+// --- Composite drawing for each position ---
+function drawPosition(pos, key, showCircle, showLabel) {
+  const offset = LABEL_OFFSETS[key];
+  const radius = CIRCLE_RADII[key];
+  if (showCircle) drawDashedCircle(pos.x, pos.y, radius, COLORS.circle);
+  if (showLabel) drawLabel(key, pos.x + offset.dx, pos.y + offset.dy, offset.size);
+}
+
+// --- Main render loop ---
 function render() {
-  time += penSpeed * 0.001;
+  time += state.penSpeed * TIME_STEP_SCALE;
   const W = canvas.width;
   const H = canvas.height;
 
-  // Current pen position
-  const penPos = autoPosition(time);
+  const posA = autoPosition(time);
+  pushHistory(posA);
 
-  // Push to history
-  posHistory.push({ x: penPos.x, y: penPos.y });
-  if (posHistory.length > HISTORY_SIZE) posHistory.shift();
+  const posB = getLaggedPos(state.pointerLag);
+  const posC = getLaggedPos(state.pointerLag + state.brushLag);
+  pushBrushTrail(posC);
 
-  // Compute lagged positions
-  const posA = penPos;
-  const posB = getLaggedPos(pointerLag);
-  const posC = getLaggedPos(pointerLag + brushLag);
-
-  // Push brush trail
-  brushTrail.push({ x: posC.x, y: posC.y });
-  if (brushTrail.length > BRUSH_TRAIL_MAX) brushTrail.shift();
-
-  // Clear and draw background
-  ctx.fillStyle = '#e8b84b';
+  // Background
+  ctx.fillStyle = COLORS.background;
   ctx.fillRect(0, 0, W, H);
 
-  // ---- Draw layers back to front ----
-
-  // 1. Brush stroke trail (furthest back)
+  // Layers back to front
   drawBrushStroke(brushTrail);
 
-  // 2. Connector lines (a to b, b to c)
-  if (showLines) {
+  if (state.showLines) {
     drawDashedLine(posA.x, posA.y + 3, posB.x, posB.y);
     drawDashedLine(posB.x, posB.y, posC.x, posC.y);
   }
 
-  // 7. Draw position c - brush head (red dashed circle)
-  if (showCircleC) drawDashedCircle(posC.x, posC.y, 24, '#d04040');
-  if (showC) drawLabel('c', posC.x + 20, posC.y + 26, 24);
-
-  // 8. Draw position b - OS pointer
+  drawPosition(posC, 'c', state.showCircleC, state.showC);
   drawPointer(posB.x, posB.y);
-  if (showCircleB) drawDashedCircle(posB.x, posB.y, 20, '#d04040');
-  if (showB) drawLabel('b', posB.x, posB.y + 34, 22);
-
-  // 9. Draw position a - pen tip (on top of everything)
+  drawPosition(posB, 'b', state.showCircleB, state.showB);
   drawPen(posA.x, posA.y);
-  if (showCircleA) drawDashedCircle(posA.x, posA.y, 16, '#d04040');
-  if (showA) drawLabel('a', posA.x - 22, posA.y + 24, 22);
+  drawPosition(posA, 'a', state.showCircleA, state.showA);
 
-  // ---- Legend (bottom-left) ----
-  ctx.save();
-  ctx.font = '14px "Google Sans Flex", sans-serif';
-  ctx.fillStyle = '#444';
-  ctx.textAlign = 'left';
-  const lx = 18;
-  const ly = H - 68;
-  ctx.fillText('a: pen tip   b: OS pointer   c: brush stroke', lx, ly);
-  ctx.fillText('a → b = pointer lag', lx, ly + 22);
-  ctx.fillText('b → c = brush lag', lx, ly + 42);
-  ctx.restore();
+  drawLegend(W, H);
 
   requestAnimationFrame(render);
 }
 
-// Pre-warm: simulate several seconds of animation so it starts with spread
-for (let i = 0; i < HISTORY_SIZE; i++) {
-  time += penSpeed * 0.001;
-  const p = autoPosition(time);
-  posHistory.push({ x: p.x, y: p.y });
-}
-// Pre-warm brush trail too
-for (let i = 0; i < BRUSH_TRAIL_MAX; i++) {
-  const idx = Math.max(0, posHistory.length - 1 - (BRUSH_TRAIL_MAX - i) - Math.round(pointerLag + brushLag));
-  if (idx >= 0 && idx < posHistory.length) {
-    brushTrail.push({ x: posHistory[idx].x, y: posHistory[idx].y });
+// --- Pre-warm animation ---
+function preWarm() {
+  for (let i = 0; i < HISTORY_SIZE; i++) {
+    time += state.penSpeed * TIME_STEP_SCALE;
+    pushHistory(autoPosition(time));
+  }
+  const totalLag = Math.round(state.pointerLag + state.brushLag);
+  for (let i = 0; i < BRUSH_TRAIL_MAX; i++) {
+    const idx = Math.max(0, posHistory.length - 1 - (BRUSH_TRAIL_MAX - i) - totalLag);
+    if (idx >= 0 && idx < posHistory.length) {
+      brushTrail.push({ x: posHistory[idx].x, y: posHistory[idx].y });
+    }
   }
 }
 
+preWarm();
 render();
 </script>
 </body>
