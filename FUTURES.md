@@ -61,3 +61,5 @@ Ideas for fixes, improvements, and new directions.
 - **Embed mode**: URL parameters to configure initial state, hide controls, and auto-play — useful for embedding in blog posts or slides.
 - **Accessibility**: Add ARIA labels to controls, keyboard navigation for sliders, and a text description of the current animation state.
 - **State serialization**: Encode the full slider/toggle state into a URL hash so configurations can be shared as links.
+
+temp
