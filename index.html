@@ -321,21 +321,23 @@ function drawPen(x, y) {
 
 function drawPointer(x, y) {
   ctx.save();
-  ctx.strokeStyle = COLORS.pointer;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([3, 3]);
-  const s = 1.3;
+  const s = 1.4;
   ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x, y + 18 * s);
-  ctx.lineTo(x + 5 * s, y + 13 * s);
-  ctx.lineTo(x + 9 * s, y + 21 * s);
-  ctx.lineTo(x + 12 * s, y + 19 * s);
-  ctx.lineTo(x + 8 * s, y + 11 * s);
-  ctx.lineTo(x + 14 * s, y + 11 * s);
+  ctx.moveTo(x, y);                        // tip at position b
+  ctx.lineTo(x, y + 20 * s);
+  ctx.lineTo(x + 5 * s, y + 15 * s);
+  ctx.lineTo(x + 8 * s, y + 22 * s);
+  ctx.lineTo(x + 11 * s, y + 20 * s);
+  ctx.lineTo(x + 8 * s, y + 13 * s);
+  ctx.lineTo(x + 13 * s, y + 13 * s);
   ctx.closePath();
+  // White fill
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  // Black border
+  ctx.strokeStyle = '#222222';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
-  ctx.setLineDash([]);
   ctx.restore();
 }
 
