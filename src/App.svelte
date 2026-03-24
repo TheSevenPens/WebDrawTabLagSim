@@ -11,6 +11,7 @@
   let penSpeed = $state(3);
   let pathType = $state('lissajous');
   let brushSize = $state(1);
+  let reportRate = $state(60);
 
   // Visibility toggles
   let showA = $state(true);
@@ -48,6 +49,7 @@
     {showBrushStroke}
     {pathType}
     {brushSize}
+    {reportRate}
   />
 </div>
 
@@ -57,6 +59,7 @@
   bind:penSpeed
   bind:pathType
   bind:brushSize
+  bind:reportRate
 />
 
 <style>
