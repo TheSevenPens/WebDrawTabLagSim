@@ -1,0 +1,15 @@
+export const state = {
+  pointerLag: 25,
+  brushLag: 35,
+  penSpeed: 7,
+  showLineAB: true,
+  showLineBC: true,
+  showA: true,
+  showB: true,
+  showC: true,
+  showPointer: true,
+  pointerStyle: 'mouse',
+  showCircleA: true,
+  showCircleB: true,
+  showCircleC: true,
+};
