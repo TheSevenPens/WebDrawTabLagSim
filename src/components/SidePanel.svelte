@@ -45,7 +45,7 @@
 </script>
 
 <div class="side-panel">
-  <CollapsibleSection title="PEN" open={false}>
+  <CollapsibleSection title="GESTURE" open={false}>
     <Slider label="Speed" min={0.5} max={10} step={0.5} bind:value={penSpeed} />
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -63,7 +63,7 @@
     </div>
   </CollapsibleSection>
 
-  <CollapsibleSection title="POINTER" open={false}>
+  <CollapsibleSection title="TABLET" open={false}>
     <Slider label="Latency" min={0} max={80} bind:value={pointerLatency} />
     <Slider label="Smoothing" min={0} max={50} bind:value={pointerSmoothing} />
     <Slider label="Report Rate (Hz)" min={1} max={60} bind:value={reportRate} />
