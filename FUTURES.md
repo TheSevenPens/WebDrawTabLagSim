@@ -5,7 +5,7 @@ Ideas for fixes, improvements, and new directions.
 ## Fixes
 
 - **Label collision avoidance**: Labels a, b, c can overlap when lag values are small. Could dynamically reposition labels based on proximity to each other.
-- **Resize resets animation**: Resizing the window doesn't preserve the visual state well since canvas dimensions change but history positions use old coordinates. Could normalize positions to percentages.
+- ~~**Resize resets animation**: Resizing the window doesn't preserve the visual state well since canvas dimensions change but history positions use old coordinates. Could normalize positions to percentages.~~ Done — fullscreen/resize now resets and pre-warms the simulation.
 - **Report rate and track sync**: The pre-computed tracks don't account for report rate stepping. At low report rates, B's actual path deviates from its smooth track. Could compute a stepped version of track B.
 
 ## Visual Improvements
@@ -24,7 +24,7 @@ Ideas for fixes, improvements, and new directions.
 - ~~**Screen refresh rate**: Simulate display update frequency (10–144 Hz) with sample-and-hold behavior between refreshes.~~ Done — Refresh Rate slider.
 - ~~**Pixel response time**: Model LCD pixel transition speed with per-pixel exponential blending for ghosting effects.~~ Done — Response Time slider (1–50ms).
 - ~~**Pixel grid**: Show grid lines between simulated pixels.~~ Done — Pixel grid checkbox.
-- ~~**IPS glow**: Bloom effect simulating IPS panel backlight bleed.~~ Done — IPS glow checkbox.
+- ~~**IPS glow**: Bloom effect simulating IPS panel backlight bleed.~~ Done, then removed — feature was cut in a later redesign.
 - **RGB sub-pixel rendering**: Render each simulated pixel as three vertical R/G/B sub-columns, modeling real LCD sub-pixel structure.
 - **Panel type presets**: Preset configurations for common panel types (TN, IPS, VA, OLED) with different response time curves and color characteristics.
 - **Overdrive simulation**: Model the overshoot artifacts that occur when LCD panels use aggressive pixel transition acceleration.
@@ -48,9 +48,9 @@ Ideas for fixes, improvements, and new directions.
 - ~~**Animation path selector**: Choose between different paths.~~ Done — Lissajous, Circle, Star via dropdown.
 - **More path types**: Sine wave, spiral, figure-8, random walk, or custom user-drawn paths.
 - **Lissajous frequency ratio selector**: Let the user control the X and Y frequencies to change path complexity (e.g., 1:2 for figure-8, 2:3 for pretzel, higher ratios for more loops).
-- ~~**Brush stroke width slider**: Control the maximum thickness of the tapered stroke.~~ Done — Brush Size slider (0.1–3).
-- **Pause/play button**: Freeze the animation to inspect positions.
-- **Reset button**: Clear history and restart the animation.
+- ~~**Brush stroke width slider**: Control the maximum thickness of the tapered stroke.~~ Done — Brush Size slider (1–30).
+- ~~**Pause/play button**: Freeze the animation to inspect positions.~~ Done — Play/Pause button in TopPanel (true freeze, entire visualization stops). Stop Pen/Resume Pen button also available (only stops pen movement, b and c catch up naturally).
+- ~~**Reset button**: Clear history and restart the animation.~~ Done — Restart and Reset All buttons in TopPanel.
 - ~~**Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").~~ Done — Presets panel in the side panel with save, load, rename, delete, export, and import. All 30 settings stored in localStorage under `lag-viz-presets`.
 - **Cloud sync presets**: Sync saved presets across devices via a cloud backend or service like Firebase.
 - **Shareable preset URLs**: Encode preset data into a URL so configurations can be shared as links without needing file export.
@@ -97,3 +97,9 @@ Ideas for fixes, improvements, and new directions.
 - **Accessibility**: Add ARIA labels to controls, keyboard navigation for sliders, and a text description of the current animation state.
 - **State serialization**: Encode the full slider/toggle state into a URL hash so configurations can be shared as links.
 - **Performance profiling**: At high subdivision counts or brush trail lengths, the render loop may become CPU-bound. Could profile and optimize the hot path, or consider WebGL for the stroke rendering.
+
+## UI / Layout
+
+- **Remember collapsed section state**: Persist which sections are expanded/collapsed in localStorage so users don't have to re-expand their preferred sections on every page load.
+- **Responsive side panel**: Allow the side panel to be resized by dragging, or auto-collapse on narrow viewports.
+- **Keyboard shortcuts**: Add hotkeys for common actions (space for play/pause, R for restart, etc.).
