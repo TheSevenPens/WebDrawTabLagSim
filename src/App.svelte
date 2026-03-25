@@ -37,6 +37,7 @@
   let screenResponseTime = $state(5);
   let showPixelGrid = $state(false);
   let screenAntiAlias = $state(true);
+  let aspectRatio = $state('16:9');
 
   // Playback
   let paused = $state(false);
@@ -88,6 +89,7 @@
     screenResponseTime = 5;
     showPixelGrid = false;
     screenAntiAlias = true;
+    aspectRatio = '16:9';
     restartKey++;
   }
 
@@ -100,7 +102,7 @@
       showCircleA, showCircleB, showCircleC,
       showTrackA, showTrackB, showTrackC, showBrushStroke,
       screenMode, screenResolution, screenRefreshRate, screenResponseTime,
-      showPixelGrid, screenAntiAlias,
+      showPixelGrid, screenAntiAlias, aspectRatio,
     };
   }
 
@@ -134,6 +136,7 @@
     if (d.screenResponseTime != null) screenResponseTime = d.screenResponseTime;
     if (d.showPixelGrid != null) showPixelGrid = d.showPixelGrid;
     if (d.screenAntiAlias != null) screenAntiAlias = d.screenAntiAlias;
+    if (d.aspectRatio != null) aspectRatio = d.aspectRatio;
     restartKey++;
   }
 </script>
@@ -154,6 +157,7 @@
     bind:screenMode bind:screenResolution bind:screenRefreshRate
     bind:screenResponseTime bind:showPixelGrid
     bind:screenAntiAlias
+    bind:aspectRatio
     {getCurrentSettings}
     onLoadPreset={loadPreset}
   />
@@ -179,6 +183,7 @@
       {screenResponseTime}
       {showPixelGrid}
       {screenAntiAlias}
+      {aspectRatio}
       {paused}
       {frozen}
     />

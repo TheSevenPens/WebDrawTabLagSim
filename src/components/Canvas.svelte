@@ -45,6 +45,7 @@
     screenResponseTime,
     showPixelGrid,
     screenAntiAlias,
+    aspectRatio,
     paused,
     frozen,
   } = $props();
@@ -61,6 +62,11 @@
   let animFrame;
   let mounted = false;
   let lastFrameTime = null;
+
+  function getAspectHeight() {
+    const parts = aspectRatio.split(':');
+    return Number(parts[1]) / Number(parts[0]);
+  }
   let isFullscreen = $state(false);
 
   // Logical (CSS) dimensions — drawing code uses these
@@ -78,8 +84,9 @@
       logicalW = window.innerWidth;
       logicalH = window.innerHeight;
     } else {
-      logicalW = Math.min(window.innerWidth - 40, 770);
-      logicalH = Math.round(logicalW * (10 / 16));
+      const maxH = 430;
+      logicalH = maxH;
+      logicalW = Math.min(Math.round(logicalH / getAspectHeight()), window.innerWidth - 40);
     }
 
     // Set CSS display size
@@ -143,6 +150,19 @@
     }
   });
 
+  // Reinit when aspect ratio changes
+  $effect(() => {
+    const _ar = aspectRatio;
+    if (mounted) {
+      resize();
+      resetSimulation();
+      time = preWarm(logicalW, logicalH, {
+        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
+      });
+      recomputeTracks();
+    }
+  });
+
   // Manage screen lifecycle reactively
   $effect(() => {
     const _sm = screenMode;
@@ -151,7 +171,7 @@
 
     if (screenMode) {
       const sw = screenResolution;
-      const sh = Math.round(sw * (10 / 16));
+      const sh = Math.round(sw * getAspectHeight());
       if (!screen) {
         screen = createScreen(sw, sh);
       } else if (screen.width !== sw || screen.height !== sh) {

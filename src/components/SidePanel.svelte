@@ -38,6 +38,7 @@
     screenResponseTime = $bindable(),
     showPixelGrid = $bindable(),
     screenAntiAlias = $bindable(),
+    aspectRatio = $bindable(),
     // Actions
     getCurrentSettings,
     onLoadPreset,
@@ -105,6 +106,16 @@
   </CollapsibleSection>
 
   <CollapsibleSection title="DISPLAY" open={false}>
+    <div class="select-row">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>Aspect Ratio</label>
+      <select bind:value={aspectRatio}>
+        <option value="16:9">16:9</option>
+        <option value="16:10">16:10</option>
+        <option value="4:3">4:3</option>
+        <option value="1:1">1:1</option>
+      </select>
+    </div>
     <label class="checkbox-single"><input type="checkbox" bind:checked={screenMode}> Screen mode</label>
     {#if screenMode}
       <Slider label="Resolution (px)" min={80} max={320} step={10} bind:value={screenResolution} />
