@@ -1,124 +1,173 @@
 <script>
+  import CollapsibleSection from './CollapsibleSection.svelte';
+  import Slider from './Slider.svelte';
+  import Presets from './Presets.svelte';
+
   let {
+    // Pen input
+    penSpeed = $bindable(),
+    pathType = $bindable(),
+    // Pointer
+    pointerLatency = $bindable(),
+    pointerSmoothing = $bindable(),
+    reportRate = $bindable(),
     showA = $bindable(),
-    showB = $bindable(),
-    showC = $bindable(),
+    showTrackA = $bindable(),
+    showCircleA = $bindable(),
     showPointer = $bindable(),
     pointerStyle = $bindable(),
-    showTrackA = $bindable(),
+    showB = $bindable(),
     showTrackB = $bindable(),
-    showTrackC = $bindable(),
-    showCircleA = $bindable(),
     showCircleB = $bindable(),
+    // Brush
+    brushLatency = $bindable(),
+    brushSmoothing = $bindable(),
+    showC = $bindable(),
+    showTrackC = $bindable(),
     showCircleC = $bindable(),
+    // Brush engine
+    brushSize = $bindable(),
+    brushSpacing = $bindable(),
+    brushTrailLength = $bindable(),
     showBrushStroke = $bindable(),
     smoothStroke = $bindable(),
+    // Screen
     screenMode = $bindable(),
+    screenResolution = $bindable(),
+    screenRefreshRate = $bindable(),
+    screenResponseTime = $bindable(),
     showPixelGrid = $bindable(),
-    showIpsGlow = $bindable(),
     screenAntiAlias = $bindable(),
-    onRestart,
-    onResetAll,
-    children,
+    // Actions
+    getCurrentSettings,
+    onLoadPreset,
   } = $props();
 </script>
 
 <div class="side-panel">
-  <div class="legend">
-    <div>a: pen tip</div>
-    <div>b: OS pointer</div>
-    <div>c: brush stroke</div>
-    <div class="legend-spacer"></div>
-    <div>a → b = pointer latency + smoothing</div>
-    <div>b → c = brush latency + smoothing</div>
-  </div>
-  <div class="checkboxes">
-    <label><input type="checkbox" bind:checked={showA}> Label a</label>
-    <label><input type="checkbox" bind:checked={showB}> Label b</label>
-    <label><input type="checkbox" bind:checked={showC}> Label c</label>
-    <label><input type="checkbox" bind:checked={showPointer}> OS pointer</label>
-    <label class="pointer-style-label">
-      <select bind:value={pointerStyle}>
-        <option value="mouse">Mouse</option>
-        <option value="crosshair">Crosshair</option>
+  <CollapsibleSection title="GESTURE" open={false}>
+    <Slider label="Speed" min={0.5} max={10} step={0.5} bind:value={penSpeed} />
+    <div class="select-row">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>Path</label>
+      <select bind:value={pathType}>
+        <option value="lissajous">Lissajous</option>
+        <option value="circle">Circle</option>
+        <option value="star">Star</option>
       </select>
-    </label>
-    <label><input type="checkbox" bind:checked={showTrackA}> Track a</label>
-    <label><input type="checkbox" bind:checked={showTrackB}> Track b</label>
-    <label><input type="checkbox" bind:checked={showTrackC}> Track c</label>
-    <label><input type="checkbox" bind:checked={showCircleA}> Circle a</label>
-    <label><input type="checkbox" bind:checked={showCircleB}> Circle b</label>
-    <label><input type="checkbox" bind:checked={showCircleC}> Circle c</label>
-    <label><input type="checkbox" bind:checked={showBrushStroke}> Brush stroke</label>
-    <label><input type="checkbox" bind:checked={smoothStroke}> Smooth stroke</label>
-    <div class="legend-spacer"></div>
-    <label><input type="checkbox" bind:checked={screenMode}> Screen mode</label>
-    {#if screenMode}
-      <label><input type="checkbox" bind:checked={showPixelGrid}> Pixel grid</label>
-      <label><input type="checkbox" bind:checked={showIpsGlow}> IPS glow</label>
-      <label><input type="checkbox" bind:checked={screenAntiAlias}> Anti-aliasing</label>
+    </div>
+    <div class="checkbox-row">
+      <label><input type="checkbox" bind:checked={showA}> Label</label>
+      <label><input type="checkbox" bind:checked={showTrackA}> Track</label>
+      <label><input type="checkbox" bind:checked={showCircleA}> Circle</label>
+    </div>
+  </CollapsibleSection>
+
+  <CollapsibleSection title="TABLET" open={false}>
+    <Slider label="Latency" min={0} max={80} bind:value={pointerLatency} />
+    <Slider label="Smoothing" min={0} max={50} bind:value={pointerSmoothing} />
+    <Slider label="Report Rate (Hz)" min={1} max={60} bind:value={reportRate} />
+    <div class="checkbox-row">
+      <label><input type="checkbox" bind:checked={showPointer}> Pointer</label>
+      <label><input type="checkbox" bind:checked={showB}> Label</label>
+    </div>
+    <div class="checkbox-row">
+      <label><input type="checkbox" bind:checked={showTrackB}> Track</label>
+      <label><input type="checkbox" bind:checked={showCircleB}> Circle</label>
+    </div>
+    {#if showPointer}
+      <div class="select-row">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label>Style</label>
+        <select bind:value={pointerStyle}>
+          <option value="mouse">Mouse</option>
+          <option value="crosshair">Crosshair</option>
+        </select>
+      </div>
     {/if}
-  </div>
-  <div class="buttons">
-    <button onclick={onRestart}>Restart</button>
-    <button onclick={onResetAll}>Reset All</button>
-  </div>
-  {@render children()}
+  </CollapsibleSection>
+
+  <CollapsibleSection title="BRUSH" open={false}>
+    <Slider label="Latency" min={0} max={80} bind:value={brushLatency} />
+    <Slider label="Smoothing" min={0} max={50} bind:value={brushSmoothing} />
+    <Slider label="Size" min={1} max={30} step={1} bind:value={brushSize} />
+    <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
+    <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
+    <div class="checkbox-row">
+      <label><input type="checkbox" bind:checked={showC}> Label</label>
+      <label><input type="checkbox" bind:checked={showTrackC}> Track</label>
+      <label><input type="checkbox" bind:checked={showCircleC}> Circle</label>
+    </div>
+    <div class="checkbox-row">
+      <label><input type="checkbox" bind:checked={showBrushStroke}> Stroke</label>
+      <label><input type="checkbox" bind:checked={smoothStroke}> Smooth</label>
+    </div>
+  </CollapsibleSection>
+
+  <CollapsibleSection title="DISPLAY" open={false}>
+    <label class="checkbox-single"><input type="checkbox" bind:checked={screenMode}> Screen mode</label>
+    {#if screenMode}
+      <Slider label="Resolution (px)" min={80} max={320} step={10} bind:value={screenResolution} />
+      <Slider label="Refresh Rate (Hz)" min={10} max={144} bind:value={screenRefreshRate} />
+      <Slider label="Response Time (ms)" min={1} max={200} bind:value={screenResponseTime} />
+      <div class="checkbox-row">
+        <label><input type="checkbox" bind:checked={showPixelGrid}> Grid</label>
+        <label><input type="checkbox" bind:checked={screenAntiAlias}> AA</label>
+      </div>
+    {/if}
+  </CollapsibleSection>
+
+  <CollapsibleSection title="PRESETS" open={false}>
+    <Presets {getCurrentSettings} {onLoadPreset} />
+  </CollapsibleSection>
+
 </div>
 
 <style>
   .side-panel {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 10px 0;
+    padding: 4px 0;
+    min-width: 280px;
+    max-width: 320px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
   }
-  .legend {
+  .checkbox-row {
     display: flex;
-    flex-direction: column;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .checkbox-row label, .checkbox-single {
+    display: flex;
+    align-items: center;
     gap: 4px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #aaa;
-    white-space: nowrap;
-  }
-  .legend-spacer {
-    height: 6px;
-  }
-  .checkboxes {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .checkboxes label {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
   }
-  .pointer-style-label {
-    padding-left: 16px;
-  }
-  select {
-    font-size: 0.8rem;
-    font-family: inherit;
-  }
-  .buttons {
+  .select-row {
     display: flex;
+    align-items: center;
     gap: 8px;
   }
-  .buttons button {
+  .select-row label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .select-row select {
     font-size: 0.78rem;
     font-family: inherit;
-    font-weight: 600;
-    padding: 4px 10px;
-    border: 1px solid #666;
+    padding: 4px 6px;
+    background: #4a4a4a;
+    color: #ccc;
+    border: 1px solid #5a5a5a;
     border-radius: 4px;
-    background: #444;
-    color: #ddd;
-    cursor: pointer;
   }
-  .buttons button:hover {
-    background: #555;
+  .select-row select option {
+    background: #4a4a4a;
+    color: #ccc;
   }
 </style>

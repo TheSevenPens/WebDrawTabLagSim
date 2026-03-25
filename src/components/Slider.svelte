@@ -3,37 +3,64 @@
 </script>
 
 <div class="slider-group">
-  <!-- svelte-ignore a11y_label_has_associated_control -->
-  <label>{label}</label>
-  <div class="slider-row">
-    <input type="range" {min} {max} {step} bind:value={value}>
+  <div class="label-row">
+    <!-- svelte-ignore a11y_label_has_associated_control -->
+    <label>{label}</label>
     <span class="value">{value}</span>
   </div>
+  <input type="range" {min} {max} {step} bind:value={value}>
 </div>
 
 <style>
   .slider-group {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    gap: 6px;
+    width: 100%;
   }
-  .slider-group label {
-    font-size: 0.85rem;
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .label-row label {
+    font-size: 0.78rem;
     font-weight: 600;
   }
-  .slider-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
   .value {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: #aaa;
-    min-width: 24px;
   }
   input[type="range"] {
-    width: 160px;
-    accent-color: #e07040;
+    width: 100%;
+    accent-color: #7089a8;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: #4a4a4a;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #7089a8;
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #4a4a4a;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #7089a8;
+    border: none;
+    cursor: pointer;
   }
 </style>

@@ -44,8 +44,9 @@
     screenRefreshRate,
     screenResponseTime,
     showPixelGrid,
-    showIpsGlow,
     screenAntiAlias,
+    paused,
+    frozen,
   } = $props();
 
   let containerEl;
@@ -177,25 +178,37 @@
 
     mounted = true;
 
-    const onResize = () => {
+    function reinitAfterResize() {
       resize();
+      resetSimulation();
+      time = preWarm(logicalW, logicalH, {
+        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
+      });
       recomputeTracks();
+    }
+
+    const onResize = () => {
+      reinitAfterResize();
     };
     window.addEventListener('resize', onResize);
 
     const onFullscreenChange = () => {
       isFullscreen = !!document.fullscreenElement;
-      resize();
-      recomputeTracks();
+      reinitAfterResize();
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
     function render(timestamp) {
+      if (frozen) {
+        animFrame = requestAnimationFrame(render);
+        return;
+      }
+
       // Compute real dt for screen refresh timing
       const dt = lastFrameTime ? (timestamp - lastFrameTime) : 16.67;
       lastFrameTime = timestamp;
 
-      time += penSpeed * TIME_STEP_SCALE;
+      if (!paused) time += penSpeed * TIME_STEP_SCALE;
       const dpr = window.devicePixelRatio || 1;
       const W = logicalW;
       const H = logicalH;
@@ -255,7 +268,7 @@
         }
 
         // Composite screen layer onto main canvas (every frame — LCD hold behavior)
-        renderScreenToMain(ctx, screen, W, H, showPixelGrid, showIpsGlow);
+        renderScreenToMain(ctx, screen, W, H, showPixelGrid);
 
         // Draw ideal overlays on top (ground truth elements)
         drawPosition(ctx, posC, 'c', showCircleC, showC);
@@ -299,10 +312,12 @@
 
 <div class="canvas-container" bind:this={containerEl}>
   <canvas bind:this={canvasEl}></canvas>
-  <div class="overlay-buttons">
+  <div class="overlay-left">
     <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG">📷</button>
+  </div>
+  <div class="overlay-right">
     <button class="overlay-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-      {isFullscreen ? '✕' : '⛶'}
+      {isFullscreen ? '⛶' : '⛶'}
     </button>
   </div>
 </div>
@@ -326,17 +341,22 @@
   .canvas-container:fullscreen canvas {
     border-radius: 0;
   }
-  .overlay-buttons {
+  .overlay-left, .overlay-right {
     position: absolute;
     top: 8px;
-    right: 8px;
-    display: flex;
-    gap: 4px;
     opacity: 0;
     transition: opacity 0.2s;
   }
-  .canvas-container:hover .overlay-buttons,
-  .canvas-container:fullscreen .overlay-buttons {
+  .overlay-left {
+    left: 8px;
+  }
+  .overlay-right {
+    right: 8px;
+  }
+  .canvas-container:hover .overlay-left,
+  .canvas-container:hover .overlay-right,
+  .canvas-container:fullscreen .overlay-left,
+  .canvas-container:fullscreen .overlay-right {
     opacity: 1;
   }
   .overlay-btn {

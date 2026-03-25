@@ -1,8 +1,7 @@
 <script>
+  import TopPanel from './components/TopPanel.svelte';
   import Canvas from './components/Canvas.svelte';
   import SidePanel from './components/SidePanel.svelte';
-  import Controls from './components/Controls.svelte';
-  import Presets from './components/Presets.svelte';
 
   // Lag parameters
   let pointerLatency = $state(25);
@@ -11,7 +10,7 @@
   let brushSmoothing = $state(0);
   let penSpeed = $state(3);
   let pathType = $state('lissajous');
-  let brushSize = $state(1);
+  let brushSize = $state(4);
   let reportRate = $state(60);
   let brushSpacing = $state(0);
   let smoothStroke = $state(false);
@@ -37,31 +36,40 @@
   let screenRefreshRate = $state(60);
   let screenResponseTime = $state(5);
   let showPixelGrid = $state(false);
-  let showIpsGlow = $state(false);
   let screenAntiAlias = $state(true);
+
+  // Playback
+  let paused = $state(false);
+  let frozen = $state(false);
 
   // Restart key — incrementing forces Canvas to re-mount
   let restartKey = $state(0);
+  let prevPathType = pathType;
+
+  // Auto-restart when path type changes
+  $effect(() => {
+    if (pathType !== prevPathType) {
+      prevPathType = pathType;
+      restartKey++;
+    }
+  });
 
   function restartAnimation() {
     restartKey++;
   }
 
   function resetAll() {
-    // Lag parameters
     pointerLatency = 25;
     pointerSmoothing = 0;
     brushLatency = 35;
     brushSmoothing = 0;
     penSpeed = 3;
     pathType = 'lissajous';
-    brushSize = 1;
+    brushSize = 4;
     reportRate = 60;
     brushSpacing = 0;
     smoothStroke = false;
     brushTrailLength = 180;
-
-    // Visibility toggles
     showA = true;
     showB = true;
     showC = true;
@@ -74,17 +82,12 @@
     showTrackB = true;
     showTrackC = true;
     showBrushStroke = true;
-
-    // Screen simulation
     screenMode = false;
     screenResolution = 160;
     screenRefreshRate = 60;
     screenResponseTime = 5;
     showPixelGrid = false;
-    showIpsGlow = false;
     screenAntiAlias = true;
-
-    // Restart animation
     restartKey++;
   }
 
@@ -97,7 +100,7 @@
       showCircleA, showCircleB, showCircleC,
       showTrackA, showTrackB, showTrackC, showBrushStroke,
       screenMode, screenResolution, screenRefreshRate, screenResponseTime,
-      showPixelGrid, showIpsGlow, screenAntiAlias,
+      showPixelGrid, screenAntiAlias,
     };
   }
 
@@ -130,31 +133,30 @@
     if (d.screenRefreshRate != null) screenRefreshRate = d.screenRefreshRate;
     if (d.screenResponseTime != null) screenResponseTime = d.screenResponseTime;
     if (d.showPixelGrid != null) showPixelGrid = d.showPixelGrid;
-    if (d.showIpsGlow != null) showIpsGlow = d.showIpsGlow;
     if (d.screenAntiAlias != null) screenAntiAlias = d.screenAntiAlias;
     restartKey++;
   }
 </script>
 
-<h1>Drawing Tablet Lag Visualizer</h1>
+<TopPanel onRestart={restartAnimation} onResetAll={resetAll} bind:paused bind:frozen />
 
 <div class="main-row">
   <SidePanel
+    bind:penSpeed bind:pathType
+    bind:pointerLatency bind:pointerSmoothing bind:reportRate
     bind:showA bind:showB bind:showC
     bind:showPointer bind:pointerStyle
     bind:showTrackA bind:showTrackB bind:showTrackC
     bind:showCircleA bind:showCircleB bind:showCircleC
-    bind:showBrushStroke
-    bind:smoothStroke
-    bind:screenMode
-    bind:showPixelGrid
-    bind:showIpsGlow
+    bind:brushLatency bind:brushSmoothing
+    bind:brushSize bind:brushSpacing bind:brushTrailLength
+    bind:showBrushStroke bind:smoothStroke
+    bind:screenMode bind:screenResolution bind:screenRefreshRate
+    bind:screenResponseTime bind:showPixelGrid
     bind:screenAntiAlias
-    onRestart={restartAnimation}
-    onResetAll={resetAll}
-  >
-    <Presets {getCurrentSettings} onLoadPreset={loadPreset} />
-  </SidePanel>
+    {getCurrentSettings}
+    onLoadPreset={loadPreset}
+  />
   {#key restartKey}
     <Canvas
       {pointerLatency} {pointerSmoothing}
@@ -176,34 +178,14 @@
       {screenRefreshRate}
       {screenResponseTime}
       {showPixelGrid}
-      {showIpsGlow}
       {screenAntiAlias}
+      {paused}
+      {frozen}
     />
   {/key}
 </div>
 
-<Controls
-  bind:pointerLatency bind:pointerSmoothing
-  bind:brushLatency bind:brushSmoothing
-  bind:penSpeed
-  bind:pathType
-  bind:brushSize
-  bind:reportRate
-  bind:brushSpacing
-  bind:brushTrailLength
-  {screenMode}
-  bind:screenResolution
-  bind:screenRefreshRate
-  bind:screenResponseTime
-/>
-
 <style>
-  h1 {
-    font-size: 1.4rem;
-    margin-bottom: 12px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
   .main-row {
     display: flex;
     gap: 16px;
