@@ -138,11 +138,23 @@
   .side-panel {
     display: flex;
     flex-direction: column;
-    padding: 4px 0;
+    padding: 4px 12px 4px 0;
     min-width: 280px;
     max-width: 320px;
     max-height: calc(100vh - 80px);
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #555 transparent;
+  }
+  .side-panel::-webkit-scrollbar {
+    width: 6px;
+  }
+  .side-panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .side-panel::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
   }
   .checkbox-row {
     display: flex;
