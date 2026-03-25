@@ -17,18 +17,12 @@
   let brushTrailLength = $state(180);
 
   // Visibility toggles
-  let showA = $state(true);
-  let showB = $state(true);
-  let showC = $state(true);
+  let showLabels = $state(true);
+  let showTracks = $state(true);
+  let showCircles = $state(true);
   let showPointer = $state(true);
   let pointerStyle = $state('mouse');
   let pointerSize = $state(1);
-  let showCircleA = $state(true);
-  let showCircleB = $state(true);
-  let showCircleC = $state(true);
-  let showTrackA = $state(true);
-  let showTrackB = $state(true);
-  let showTrackC = $state(true);
   let showBrushStroke = $state(true);
 
   // Screen simulation
@@ -72,18 +66,12 @@
     brushSpacing = 0;
     smoothStroke = false;
     brushTrailLength = 180;
-    showA = true;
-    showB = true;
-    showC = true;
+    showLabels = true;
+    showTracks = true;
+    showCircles = true;
     showPointer = true;
     pointerStyle = 'mouse';
     pointerSize = 1;
-    showCircleA = true;
-    showCircleB = true;
-    showCircleC = true;
-    showTrackA = true;
-    showTrackB = true;
-    showTrackC = true;
     showBrushStroke = true;
     screenMode = false;
     screenResolution = 160;
@@ -100,9 +88,8 @@
       pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
       penSpeed, pathType, brushSize, reportRate, brushSpacing,
       smoothStroke, brushTrailLength,
-      showA, showB, showC, showPointer, pointerStyle, pointerSize,
-      showCircleA, showCircleB, showCircleC,
-      showTrackA, showTrackB, showTrackC, showBrushStroke,
+      showLabels, showTracks, showCircles,
+      showPointer, pointerStyle, pointerSize, showBrushStroke,
       screenMode, screenResolution, screenRefreshRate, screenResponseTime,
       showPixelGrid, screenAntiAlias, aspectRatio,
     };
@@ -120,18 +107,12 @@
     if (d.brushSpacing != null) brushSpacing = d.brushSpacing;
     if (d.smoothStroke != null) smoothStroke = d.smoothStroke;
     if (d.brushTrailLength != null) brushTrailLength = d.brushTrailLength;
-    if (d.showA != null) showA = d.showA;
-    if (d.showB != null) showB = d.showB;
-    if (d.showC != null) showC = d.showC;
+    if (d.showLabels != null) showLabels = d.showLabels;
+    if (d.showTracks != null) showTracks = d.showTracks;
+    if (d.showCircles != null) showCircles = d.showCircles;
     if (d.showPointer != null) showPointer = d.showPointer;
     if (d.pointerStyle != null) pointerStyle = d.pointerStyle;
     if (d.pointerSize != null) pointerSize = d.pointerSize;
-    if (d.showCircleA != null) showCircleA = d.showCircleA;
-    if (d.showCircleB != null) showCircleB = d.showCircleB;
-    if (d.showCircleC != null) showCircleC = d.showCircleC;
-    if (d.showTrackA != null) showTrackA = d.showTrackA;
-    if (d.showTrackB != null) showTrackB = d.showTrackB;
-    if (d.showTrackC != null) showTrackC = d.showTrackC;
     if (d.showBrushStroke != null) showBrushStroke = d.showBrushStroke;
     if (d.screenMode != null) screenMode = d.screenMode;
     if (d.screenResolution != null) screenResolution = d.screenResolution;
@@ -150,10 +131,8 @@
   <SidePanel
     bind:penSpeed bind:pathType
     bind:pointerLatency bind:pointerSmoothing bind:reportRate
-    bind:showA bind:showB bind:showC
+    bind:showLabels bind:showTracks bind:showCircles
     bind:showPointer bind:pointerStyle bind:pointerSize
-    bind:showTrackA bind:showTrackB bind:showTrackC
-    bind:showCircleA bind:showCircleB bind:showCircleC
     bind:brushLatency bind:brushSmoothing
     bind:brushSize bind:brushSpacing bind:brushTrailLength
     bind:showBrushStroke bind:smoothStroke
@@ -169,10 +148,8 @@
       {pointerLatency} {pointerSmoothing}
       {brushLatency} {brushSmoothing}
       {penSpeed}
-      {showA} {showB} {showC}
+      {showLabels} {showTracks} {showCircles}
       {showPointer} {pointerStyle} {pointerSize}
-      {showCircleA} {showCircleB} {showCircleC}
-      {showTrackA} {showTrackB} {showTrackC}
       {showBrushStroke}
       {pathType}
       {brushSize}

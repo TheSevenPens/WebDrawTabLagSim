@@ -21,18 +21,12 @@
     brushLatency,
     brushSmoothing,
     penSpeed,
-    showA,
-    showB,
-    showC,
+    showLabels,
+    showTracks,
+    showCircles,
     showPointer,
     pointerStyle,
     pointerSize,
-    showCircleA,
-    showCircleB,
-    showCircleC,
-    showTrackA,
-    showTrackB,
-    showTrackC,
     showBrushStroke,
     pathType,
     brushSize,
@@ -250,13 +244,13 @@
       ctx.fillRect(0, 0, W, H);
 
       // Deterministic tracks (back to front, always full-res)
-      if (showTrackA) {
+      if (showTracks) {
         drawTrack(ctx, trackA, COLORS.circleA + '80');
       }
-      if (showTrackB && pointerSmoothing > 0) {
+      if (showTracks && pointerSmoothing > 0) {
         drawTrack(ctx, trackB, COLORS.circleB + '80');
       }
-      if (showTrackC && brushSmoothing > 0) {
+      if (showTracks && brushSmoothing > 0) {
         drawTrack(ctx, trackC, COLORS.circleC + '80');
       }
 
@@ -292,10 +286,10 @@
         renderScreenToMain(ctx, screen, W, H, showPixelGrid);
 
         // Draw ideal overlays on top (ground truth elements)
-        drawPosition(ctx, posC, 'c', showCircleC, showC);
-        drawPosition(ctx, posB, 'b', showCircleB, showB);
+        drawPosition(ctx, posC, 'c', showCircles, showLabels);
+        drawPosition(ctx, posB, 'b', showCircles, showLabels);
         drawPen(ctx, posA.x, posA.y);
-        drawPosition(ctx, posA, 'a', showCircleA, showA);
+        drawPosition(ctx, posA, 'a', showCircles, showLabels);
 
       } else {
         // === ORIGINAL PATH ===
@@ -304,14 +298,14 @@
         if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
 
         // Draw elements back to front
-        drawPosition(ctx, posC, 'c', showCircleC, showC);
+        drawPosition(ctx, posC, 'c', showCircles, showLabels);
         if (showPointer) {
           if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y, pointerSize);
           else drawPointer(ctx, posB.x, posB.y, pointerSize);
         }
-        drawPosition(ctx, posB, 'b', showCircleB, showB);
+        drawPosition(ctx, posB, 'b', showCircles, showLabels);
         drawPen(ctx, posA.x, posA.y);
-        drawPosition(ctx, posA, 'a', showCircleA, showA);
+        drawPosition(ctx, posA, 'a', showCircles, showLabels);
       }
 
       // Blit offscreen buffer to visible canvas (pixel-to-pixel, no transform)

@@ -39,17 +39,18 @@ FUTURES.md                      — Ideas for improvements
 │  Title  [Play/Pause] [Stop/Resume] [Restart] [Reset All]  │  ← TopPanel
 ├──────────────┬──────────────────────────────────┤
 │  Side Panel  │            Canvas                 │
-│  ▶ GESTURE   │       (animation area)            │
+│  ▶ PEN       │       (animation area)            │
 │  ▶ TABLET    │                                   │
-│  ▶ OS        │    [📷]                    [⛶]    │
+│  ▶ OS POINTER│    [📷]                    [⛶]    │
 │  ▶ BRUSH     │                                   │
+│  ▶ VIEW      │                                   │
 │  ▶ DISPLAY   │                                   │
 │  ▶ PRESETS   │                                   │
 └──────────────┴──────────────────────────────────┘
 ```
 
 - **Top Panel** (`TopPanel.svelte`): Title and playback controls (Play/Pause, Stop Pen/Resume Pen, Restart, Reset All).
-- **Side Panel** (left, `SidePanel.svelte`, 280–320px): All controls organized in collapsible sections (all collapsed by default). Sections: GESTURE, TABLET, OS, BRUSH, DISPLAY, PRESETS.
+- **Side Panel** (left, `SidePanel.svelte`, 280–320px): All controls organized in collapsible sections (all collapsed by default). Sections: PEN, TABLET, OS POINTER, BRUSH, VIEW, DISPLAY, PRESETS.
 - **Canvas** (center-right, `Canvas.svelte`): Double-buffered HiDPI `<canvas>` for animation. Constant height of 600px; width computed from the selected aspect ratio. Screenshot button top-left, fullscreen button top-right (⛶ icon).
 
 ## Lag Model
@@ -252,11 +253,11 @@ brushSpacing                        — Min pixel distance between trail points 
 brushTrailLength                    — Max trail buffer size (5–300, default 180)
 smoothStroke                        — Enable Catmull-Rom + subdivision rendering
 reportRate                          — Tablet report rate in Hz (1–60)
-showA, showB, showC                 — Label visibility
+showLabels                           — Toggle all letter labels (a, b, c)
+showTracks                           — Toggle all track lines
+showCircles                          — Toggle all dotted circles
 showPointer, pointerStyle           — OS pointer visibility and style (mouse/crosshair)
 pointerSize                         — OS pointer scale factor (1, 2, 4, or 8; default 1)
-showCircleA/B/C                     — Dotted circle visibility
-showTrackA/B/C                      — Track visibility
 showBrushStroke                     — Brush stroke visibility
 aspectRatio                         — Canvas aspect ratio ('16:9', '16:10', '4:3', '1:1'; default '16:9')
 screenMode                          — Enable simulated screen layer
@@ -304,7 +305,7 @@ Preset management UI component. Provides a save input field, a scrollable preset
 Title bar and playback control buttons: Play/Pause (frozen), Stop Pen/Resume Pen (paused), Restart, and Reset All. Buttons use fixed min-width to prevent layout shift when labels change.
 
 ### `src/components/SidePanel.svelte`
-Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). Sections: GESTURE (pen speed, path type, label/track/circle for a), TABLET (latency, smoothing, report rate), OS (pointer visibility/label/track/circle for b, pointer style, pointer size), BRUSH (brush latency/smoothing, size/spacing/trail, label/track/circle for c, stroke/smooth toggles), DISPLAY (aspect ratio, screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark checkboxes (#4a4a4a unchecked, #7089a8 checked), dark slider track (#4a4a4a) with slate gray thumb (#7089a8), dark dropdowns (#4a4a4a background, #ccc text), thin custom scrollbar (6px, #555) with 12px right padding for clearance.
+Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). Sections: PEN (pen speed, path type), TABLET (latency, smoothing, report rate), OS POINTER (pointer visibility, pointer style, pointer size), BRUSH (brush latency/smoothing, size/spacing/trail, stroke/smooth toggles), VIEW (unified labels/tracks/circles toggles for all points), DISPLAY (aspect ratio, screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark checkboxes (#4a4a4a unchecked, #7089a8 checked), dark slider track (#4a4a4a) with slate gray thumb (#7089a8), dark dropdowns (#4a4a4a background, #ccc text), thin custom scrollbar (6px, #555) with 12px right padding for clearance.
 
 ### `src/components/CollapsibleSection.svelte`
 Reusable collapsible section wrapper with a clickable header showing a ▼/▶ indicator and a title. Content is shown/hidden based on collapsed state.
