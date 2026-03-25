@@ -64,10 +64,6 @@
     return Number(parts[1]) / Number(parts[0]);
   }
   let isFullscreen = $state(false);
-  let isPoppedOut = $state(false);
-  let popupWindow = null;
-  let popupCanvas = null;
-  let popupDisplayCtx = null;
 
   // Logical (CSS) dimensions — drawing code uses these
   let logicalW = 0;
@@ -80,15 +76,7 @@
     if (!canvasEl) return;
     const dpr = window.devicePixelRatio || 1;
 
-    if (isPoppedOut && popupWindow && popupCanvas) {
-      logicalW = popupWindow.innerWidth;
-      logicalH = popupWindow.innerHeight;
-
-      popupCanvas.style.width = logicalW + 'px';
-      popupCanvas.style.height = logicalH + 'px';
-      popupCanvas.width = Math.round(logicalW * dpr);
-      popupCanvas.height = Math.round(logicalH * dpr);
-    } else if (isFullscreen) {
+    if (isFullscreen) {
       logicalW = window.innerWidth;
       logicalH = window.innerHeight;
     } else {
@@ -114,72 +102,6 @@
     } else {
       document.exitFullscreen();
     }
-  }
-
-  function popOut() {
-    if (isPoppedOut) return;
-
-    const w = logicalW || 960;
-    const h = logicalH || 540;
-    const popup = window.open('', 'lag-viz-popup',
-      `width=${w},height=${h},menubar=no,toolbar=no,location=no,status=no`);
-    if (!popup) return;
-
-    popup.document.title = 'Drawing Tablet Lag Visualizer';
-    popup.document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;';
-
-    const pCanvas = popup.document.createElement('canvas');
-    pCanvas.style.display = 'block';
-    popup.document.body.appendChild(pCanvas);
-
-    popupCanvas = pCanvas;
-    popupDisplayCtx = pCanvas.getContext('2d');
-    popupWindow = popup;
-    isPoppedOut = true;
-
-    containerEl.style.display = 'none';
-
-    resize();
-    resetSimulation();
-    time = preWarm(logicalW, logicalH, {
-      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-    });
-    recomputeTracks();
-
-    popup.addEventListener('resize', () => {
-      resize();
-      resetSimulation();
-      time = preWarm(logicalW, logicalH, {
-        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-      });
-      recomputeTracks();
-    });
-
-    popup.addEventListener('beforeunload', () => {
-      popIn();
-    });
-  }
-
-  function popIn() {
-    if (!isPoppedOut) return;
-
-    isPoppedOut = false;
-    popupCanvas = null;
-    popupDisplayCtx = null;
-
-    if (popupWindow && !popupWindow.closed) {
-      popupWindow.close();
-    }
-    popupWindow = null;
-
-    containerEl.style.display = '';
-
-    resize();
-    resetSimulation();
-    time = preWarm(logicalW, logicalH, {
-      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-    });
-    recomputeTracks();
   }
 
   function saveSnapshot() {
@@ -389,11 +311,7 @@
 
       // Blit offscreen buffer to visible canvas (pixel-to-pixel, no transform)
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      if (isPoppedOut && popupDisplayCtx) {
-        popupDisplayCtx.drawImage(offscreen, 0, 0);
-      } else {
-        displayCtx.drawImage(offscreen, 0, 0);
-      }
+      displayCtx.drawImage(offscreen, 0, 0);
 
       animFrame = requestAnimationFrame(render);
     }
@@ -404,7 +322,6 @@
       cancelAnimationFrame(animFrame);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
-      if (popupWindow && !popupWindow.closed) popupWindow.close();
     };
   });
 </script>
@@ -415,9 +332,6 @@
     <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG">📷</button>
   </div>
   <div class="overlay-right">
-    <button class="overlay-btn" onclick={isPoppedOut ? popIn : popOut} title={isPoppedOut ? 'Pop back in' : 'Pop out to window'}>
-      {isPoppedOut ? '⤶' : '⤴'}
-    </button>
     <button class="overlay-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
       {isFullscreen ? '⛶' : '⛶'}
     </button>
@@ -454,8 +368,6 @@
   }
   .overlay-right {
     right: 8px;
-    display: flex;
-    gap: 4px;
   }
   .canvas-container:hover .overlay-left,
   .canvas-container:hover .overlay-right,
