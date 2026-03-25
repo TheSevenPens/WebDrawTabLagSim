@@ -3,7 +3,7 @@
 </script>
 
 <div class="top-bar">
-  <h1>Drawing Tablet Lag Visualizer</h1>
+  <h1>Drawing Tablet Lag Simulator</h1>
   <div class="top-buttons">
     <button class="fixed-btn" onclick={() => frozen = !frozen}>{frozen ? '▶ Play' : '⏸ Pause'}</button>
     <button class="fixed-btn" onclick={() => paused = !paused}>{paused ? '▶ Resume Pen' : '✋ Stop Pen'}</button>
