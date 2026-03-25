@@ -22,6 +22,7 @@
   let showC = $state(true);
   let showPointer = $state(true);
   let pointerStyle = $state('mouse');
+  let pointerSize = $state(1);
   let showCircleA = $state(true);
   let showCircleB = $state(true);
   let showCircleC = $state(true);
@@ -76,6 +77,7 @@
     showC = true;
     showPointer = true;
     pointerStyle = 'mouse';
+    pointerSize = 1;
     showCircleA = true;
     showCircleB = true;
     showCircleC = true;
@@ -98,7 +100,7 @@
       pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
       penSpeed, pathType, brushSize, reportRate, brushSpacing,
       smoothStroke, brushTrailLength,
-      showA, showB, showC, showPointer, pointerStyle,
+      showA, showB, showC, showPointer, pointerStyle, pointerSize,
       showCircleA, showCircleB, showCircleC,
       showTrackA, showTrackB, showTrackC, showBrushStroke,
       screenMode, screenResolution, screenRefreshRate, screenResponseTime,
@@ -123,6 +125,7 @@
     if (d.showC != null) showC = d.showC;
     if (d.showPointer != null) showPointer = d.showPointer;
     if (d.pointerStyle != null) pointerStyle = d.pointerStyle;
+    if (d.pointerSize != null) pointerSize = d.pointerSize;
     if (d.showCircleA != null) showCircleA = d.showCircleA;
     if (d.showCircleB != null) showCircleB = d.showCircleB;
     if (d.showCircleC != null) showCircleC = d.showCircleC;
@@ -148,7 +151,7 @@
     bind:penSpeed bind:pathType
     bind:pointerLatency bind:pointerSmoothing bind:reportRate
     bind:showA bind:showB bind:showC
-    bind:showPointer bind:pointerStyle
+    bind:showPointer bind:pointerStyle bind:pointerSize
     bind:showTrackA bind:showTrackB bind:showTrackC
     bind:showCircleA bind:showCircleB bind:showCircleC
     bind:brushLatency bind:brushSmoothing
@@ -167,7 +170,7 @@
       {brushLatency} {brushSmoothing}
       {penSpeed}
       {showA} {showB} {showC}
-      {showPointer} {pointerStyle}
+      {showPointer} {pointerStyle} {pointerSize}
       {showCircleA} {showCircleB} {showCircleC}
       {showTrackA} {showTrackB} {showTrackC}
       {showBrushStroke}

@@ -16,6 +16,7 @@
     showCircleA = $bindable(),
     showPointer = $bindable(),
     pointerStyle = $bindable(),
+    pointerSize = $bindable(),
     showB = $bindable(),
     showTrackB = $bindable(),
     showCircleB = $bindable(),
@@ -68,6 +69,9 @@
     <Slider label="Latency" min={0} max={80} bind:value={pointerLatency} />
     <Slider label="Smoothing" min={0} max={50} bind:value={pointerSmoothing} />
     <Slider label="Report Rate (Hz)" min={1} max={60} bind:value={reportRate} />
+  </CollapsibleSection>
+
+  <CollapsibleSection title="OS" open={false}>
     <div class="checkbox-row">
       <label><input type="checkbox" bind:checked={showPointer}> Pointer</label>
       <label><input type="checkbox" bind:checked={showB}> Label</label>
@@ -83,6 +87,16 @@
         <select bind:value={pointerStyle}>
           <option value="mouse">Mouse</option>
           <option value="crosshair">Crosshair</option>
+        </select>
+      </div>
+      <div class="select-row">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label>Size</label>
+        <select bind:value={pointerSize}>
+          <option value={1}>1x</option>
+          <option value={2}>2x</option>
+          <option value={4}>4x</option>
+          <option value={8}>8x</option>
         </select>
       </div>
     {/if}

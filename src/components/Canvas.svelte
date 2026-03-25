@@ -26,6 +26,7 @@
     showC,
     showPointer,
     pointerStyle,
+    pointerSize,
     showCircleA,
     showCircleB,
     showCircleC,
@@ -277,8 +278,8 @@
 
           if (showBrushStroke) drawBrushStroke(screen.ctx, brushTrail, brushSize, smoothStroke);
           if (showPointer) {
-            if (pointerStyle === 'crosshair') drawCrosshair(screen.ctx, posB.x, posB.y);
-            else drawPointer(screen.ctx, posB.x, posB.y);
+            if (pointerStyle === 'crosshair') drawCrosshair(screen.ctx, posB.x, posB.y, pointerSize);
+            else drawPointer(screen.ctx, posB.x, posB.y, pointerSize);
           }
 
           screen.ctx.restore();
@@ -305,8 +306,8 @@
         // Draw elements back to front
         drawPosition(ctx, posC, 'c', showCircleC, showC);
         if (showPointer) {
-          if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y);
-          else drawPointer(ctx, posB.x, posB.y);
+          if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y, pointerSize);
+          else drawPointer(ctx, posB.x, posB.y, pointerSize);
         }
         drawPosition(ctx, posB, 'b', showCircleB, showB);
         drawPen(ctx, posA.x, posA.y);
