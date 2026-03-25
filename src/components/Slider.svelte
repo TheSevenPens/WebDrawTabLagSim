@@ -3,37 +3,36 @@
 </script>
 
 <div class="slider-group">
-  <!-- svelte-ignore a11y_label_has_associated_control -->
-  <label>{label}</label>
-  <div class="slider-row">
-    <input type="range" {min} {max} {step} bind:value={value}>
+  <div class="label-row">
+    <!-- svelte-ignore a11y_label_has_associated_control -->
+    <label>{label}</label>
     <span class="value">{value}</span>
   </div>
+  <input type="range" {min} {max} {step} bind:value={value}>
 </div>
 
 <style>
   .slider-group {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    gap: 2px;
+    width: 100%;
   }
-  .slider-group label {
-    font-size: 0.85rem;
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .label-row label {
+    font-size: 0.78rem;
     font-weight: 600;
   }
-  .slider-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
   .value {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: #aaa;
-    min-width: 24px;
   }
   input[type="range"] {
-    width: 160px;
+    width: 100%;
     accent-color: #e07040;
   }
 </style>

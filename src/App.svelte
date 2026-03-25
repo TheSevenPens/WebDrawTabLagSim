@@ -1,8 +1,6 @@
 <script>
   import Canvas from './components/Canvas.svelte';
   import SidePanel from './components/SidePanel.svelte';
-  import Controls from './components/Controls.svelte';
-  import Presets from './components/Presets.svelte';
 
   // Lag parameters
   let pointerLatency = $state(25);
@@ -48,7 +46,6 @@
   }
 
   function resetAll() {
-    // Lag parameters
     pointerLatency = 25;
     pointerSmoothing = 0;
     brushLatency = 35;
@@ -60,8 +57,6 @@
     brushSpacing = 0;
     smoothStroke = false;
     brushTrailLength = 180;
-
-    // Visibility toggles
     showA = true;
     showB = true;
     showC = true;
@@ -74,8 +69,6 @@
     showTrackB = true;
     showTrackC = true;
     showBrushStroke = true;
-
-    // Screen simulation
     screenMode = false;
     screenResolution = 160;
     screenRefreshRate = 60;
@@ -83,8 +76,6 @@
     showPixelGrid = false;
     showIpsGlow = false;
     screenAntiAlias = true;
-
-    // Restart animation
     restartKey++;
   }
 
@@ -140,21 +131,23 @@
 
 <div class="main-row">
   <SidePanel
+    bind:penSpeed bind:pathType
+    bind:pointerLatency bind:pointerSmoothing bind:reportRate
     bind:showA bind:showB bind:showC
     bind:showPointer bind:pointerStyle
     bind:showTrackA bind:showTrackB bind:showTrackC
     bind:showCircleA bind:showCircleB bind:showCircleC
-    bind:showBrushStroke
-    bind:smoothStroke
-    bind:screenMode
-    bind:showPixelGrid
-    bind:showIpsGlow
+    bind:brushLatency bind:brushSmoothing
+    bind:brushSize bind:brushSpacing bind:brushTrailLength
+    bind:showBrushStroke bind:smoothStroke
+    bind:screenMode bind:screenResolution bind:screenRefreshRate
+    bind:screenResponseTime bind:showPixelGrid bind:showIpsGlow
     bind:screenAntiAlias
     onRestart={restartAnimation}
     onResetAll={resetAll}
-  >
-    <Presets {getCurrentSettings} onLoadPreset={loadPreset} />
-  </SidePanel>
+    {getCurrentSettings}
+    onLoadPreset={loadPreset}
+  />
   {#key restartKey}
     <Canvas
       {pointerLatency} {pointerSmoothing}
@@ -181,21 +174,6 @@
     />
   {/key}
 </div>
-
-<Controls
-  bind:pointerLatency bind:pointerSmoothing
-  bind:brushLatency bind:brushSmoothing
-  bind:penSpeed
-  bind:pathType
-  bind:brushSize
-  bind:reportRate
-  bind:brushSpacing
-  bind:brushTrailLength
-  {screenMode}
-  bind:screenResolution
-  bind:screenRefreshRate
-  bind:screenResponseTime
-/>
 
 <style>
   h1 {
