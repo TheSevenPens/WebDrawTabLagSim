@@ -48,7 +48,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Size** (1–30) — size of the brush stroke. Default is 4.
 - **Spacing** (0–50) — minimum pixel distance c must travel before a new stroke segment is rendered. At 0 (default), rendering is continuous. Higher values create a segmented stroke that reveals how real brush engines sample at intervals. Try values of 20–40 to see the effect clearly.
 - **Trail Length** (5–300) — how many sample points the stroke retains. Reduce this if the stroke loops back into itself at high spacing values.
-- **Smooth stroke** — enables Catmull-Rom spline rendering for a smoother brush mark.
+- **Use splines** — enables Catmull-Rom spline interpolation for curved, tapered stroke rendering instead of angular straight-line segments.
 
 **VIEW section**
 - **Labels** — toggle all letter labels (a, b, c) on or off at once.

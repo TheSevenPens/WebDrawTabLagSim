@@ -97,15 +97,7 @@
     <Slider label="Size" min={1} max={30} step={1} bind:value={brushSize} />
     <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
     <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
-    <label class="checkbox-single"><input type="checkbox" bind:checked={smoothStroke}> Smooth stroke</label>
-  </CollapsibleSection>
-
-  <CollapsibleSection title="VIEW" open={false}>
-    <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showLabels}> Labels</label>
-      <label><input type="checkbox" bind:checked={showTracks}> Tracks</label>
-      <label><input type="checkbox" bind:checked={showCircles}> Circles</label>
-    </div>
+    <label class="checkbox-single"><input type="checkbox" bind:checked={smoothStroke}> Use splines</label>
   </CollapsibleSection>
 
   <CollapsibleSection title="DISPLAY" open={false}>
@@ -133,6 +125,14 @@
 
   <CollapsibleSection title="PRESETS" open={false}>
     <Presets {getCurrentSettings} {onLoadPreset} />
+  </CollapsibleSection>
+
+  <CollapsibleSection title="VIEW" open={false}>
+    <div class="checkbox-row">
+      <label><input type="checkbox" bind:checked={showLabels}> Labels</label>
+      <label><input type="checkbox" bind:checked={showTracks}> Tracks</label>
+      <label><input type="checkbox" bind:checked={showCircles}> Circles</label>
+    </div>
   </CollapsibleSection>
 
 </div>
