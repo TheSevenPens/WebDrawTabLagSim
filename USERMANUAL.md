@@ -29,7 +29,7 @@ The top panel contains the title and playback controls:
 
 All controls are organized in collapsible sections. Click a section header (▶) to expand it, click again (▼) to collapse. All sections start collapsed on page load.
 
-**PEN section**
+**PEN section** — checkbox in the header toggles visibility of the pen tip and all its overlays (label, track, circle for point a).
 - **Speed** (0.5–10) — how fast the pen tip moves along its path. Lower values make it easier to observe lag effects.
 - **Path** — the shape the pen tip follows: Lissajous (pretzel-like curve), Circle, or Star (pentagram). Changing path type auto-restarts the animation.
 
@@ -38,19 +38,17 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
 - **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every frame. At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
 
-**OS POINTER section**
-- **Show OS pointer** — toggle visibility of the mouse cursor or crosshair drawn at point b.
+**OS POINTER section** — checkbox in the header toggles visibility of the OS pointer and all its overlays (label, track, circle for point b).
 - **Style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
 - **Size** — dropdown to scale the OS pointer: 1x, 2x, 4x, or 8x. Scales both the mouse cursor icon and the crosshair. Default is 1x.
 
-**BRUSH section**
-- **Brush Latency** (0–80) — time delay from b to c, same concept as pointer latency.
-- **Brush Smoothing** (0–80) — EMA filter for the brush engine. When > 0, a green track appears showing c's smoothed trajectory.
-- **Brush Size** (1–30) — size of the brush stroke. Default is 4.
-- **Brush Spacing** (0–50) — minimum pixel distance c must travel before a new stroke segment is rendered. At 0 (default), rendering is continuous. Higher values create a segmented stroke that reveals how real brush engines sample at intervals. Try values of 20–40 to see the effect clearly.
-- **Brush Trail** (5–300) — how many sample points the stroke retains. Reduce this if the stroke loops back into itself at high spacing values.
-- **Show brush** — toggle the painted trail behind point c.
-- **Smooth** — enables Catmull-Rom spline rendering for a smoother brush mark.
+**BRUSH section** — checkbox in the header toggles visibility of the brush stroke and all its overlays (label, track, circle for point c).
+- **Latency** (0–80) — time delay from b to c, same concept as pointer latency.
+- **Smoothing** (0–80) — EMA filter for the brush engine. When > 0, a green track appears showing c's smoothed trajectory.
+- **Size** (1–30) — size of the brush stroke. Default is 4.
+- **Spacing** (0–50) — minimum pixel distance c must travel before a new stroke segment is rendered. At 0 (default), rendering is continuous. Higher values create a segmented stroke that reveals how real brush engines sample at intervals. Try values of 20–40 to see the effect clearly.
+- **Trail Length** (5–300) — how many sample points the stroke retains. Reduce this if the stroke loops back into itself at high spacing values.
+- **Smooth stroke** — enables Catmull-Rom spline rendering for a smoother brush mark.
 
 **VIEW section**
 - **Labels** — toggle all letter labels (a, b, c) on or off at once.
@@ -134,7 +132,7 @@ Combine everything: set Pointer Latency to 40, Pointer Smoothing to 15, Report R
 
 ## Understanding the Tracks
 
-When smoothing is 0 for a given stage, that point follows the exact same path as its input (just time-delayed), so showing a separate track would be redundant. Tracks for b and c only appear when their respective smoothing values are greater than 0.
+When smoothing is 0 for a given stage, that point follows the exact same path as its input (just time-delayed), so showing a separate track would be redundant. Tracks for b and c normally only appear when their respective smoothing values are greater than 0. However, when a parent point is hidden (e.g., pen hidden via its header checkbox), the child point's track is shown regardless of smoothing, so there is always a visible track for each shown point.
 
 With smoothing enabled, compare the tracks:
 - **Blue track** (a) — the original path

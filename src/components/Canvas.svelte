@@ -248,10 +248,10 @@
       if (showTracks && showPen) {
         drawTrack(ctx, trackA, COLORS.circleA + '80');
       }
-      if (showTracks && pointerSmoothing > 0 && showPointer) {
+      if (showTracks && showPointer && (pointerSmoothing > 0 || !showPen)) {
         drawTrack(ctx, trackB, COLORS.circleB + '80');
       }
-      if (showTracks && brushSmoothing > 0 && showBrushStroke) {
+      if (showTracks && showBrushStroke && (brushSmoothing > 0 || !showPointer)) {
         drawTrack(ctx, trackC, COLORS.circleC + '80');
       }
 
