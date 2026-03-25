@@ -1,4 +1,5 @@
 <script>
+  import TopPanel from './components/TopPanel.svelte';
   import Canvas from './components/Canvas.svelte';
   import SidePanel from './components/SidePanel.svelte';
 
@@ -36,6 +37,10 @@
   let screenResponseTime = $state(5);
   let showPixelGrid = $state(false);
   let screenAntiAlias = $state(true);
+
+  // Playback
+  let paused = $state(false);
+  let frozen = $state(false);
 
   // Restart key — incrementing forces Canvas to re-mount
   let restartKey = $state(0);
@@ -133,13 +138,7 @@
   }
 </script>
 
-<div class="top-bar">
-  <h1>Drawing Tablet Lag Visualizer</h1>
-  <div class="top-buttons">
-    <button onclick={restartAnimation}>Restart</button>
-    <button onclick={resetAll}>Reset All</button>
-  </div>
-</div>
+<TopPanel onRestart={restartAnimation} onResetAll={resetAll} bind:paused bind:frozen />
 
 <div class="main-row">
   <SidePanel
@@ -180,41 +179,13 @@
       {screenResponseTime}
       {showPixelGrid}
       {screenAntiAlias}
+      {paused}
+      {frozen}
     />
   {/key}
 </div>
 
 <style>
-  .top-bar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 12px;
-    width: 100%;
-  }
-  h1 {
-    font-size: 1.4rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-  .top-buttons {
-    display: flex;
-    gap: 8px;
-  }
-  .top-buttons button {
-    font-size: 0.78rem;
-    font-family: inherit;
-    font-weight: 600;
-    padding: 4px 10px;
-    border: 1px solid #666;
-    border-radius: 4px;
-    background: #4a4a4a;
-    color: #ccc;
-    cursor: pointer;
-  }
-  .top-buttons button:hover {
-    background: #555;
-  }
   .main-row {
     display: flex;
     gap: 16px;

@@ -45,6 +45,8 @@
     screenResponseTime,
     showPixelGrid,
     screenAntiAlias,
+    paused,
+    frozen,
   } = $props();
 
   let containerEl;
@@ -190,11 +192,16 @@
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
     function render(timestamp) {
+      if (frozen) {
+        animFrame = requestAnimationFrame(render);
+        return;
+      }
+
       // Compute real dt for screen refresh timing
       const dt = lastFrameTime ? (timestamp - lastFrameTime) : 16.67;
       lastFrameTime = timestamp;
 
-      time += penSpeed * TIME_STEP_SCALE;
+      if (!paused) time += penSpeed * TIME_STEP_SCALE;
       const dpr = window.devicePixelRatio || 1;
       const W = logicalW;
       const H = logicalH;
