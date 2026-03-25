@@ -178,16 +178,23 @@
 
     mounted = true;
 
-    const onResize = () => {
+    function reinitAfterResize() {
       resize();
+      resetSimulation();
+      time = preWarm(logicalW, logicalH, {
+        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
+      });
       recomputeTracks();
+    }
+
+    const onResize = () => {
+      reinitAfterResize();
     };
     window.addEventListener('resize', onResize);
 
     const onFullscreenChange = () => {
       isFullscreen = !!document.fullscreenElement;
-      resize();
-      recomputeTracks();
+      reinitAfterResize();
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
@@ -310,7 +317,7 @@
   </div>
   <div class="overlay-right">
     <button class="overlay-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-      {isFullscreen ? '✕' : '⛶'}
+      {isFullscreen ? '⛶' : '⛶'}
     </button>
   </div>
 </div>
