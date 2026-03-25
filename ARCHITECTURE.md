@@ -193,7 +193,7 @@ Because A follows a periodic path, the steady-state paths of B and C are also pe
 2. **Track B**: Run A's track through the delay + EMA pipeline for several warm-up periods, keep the last period.
 3. **Track C**: Run B's track through C's delay + EMA pipeline the same way.
 
-Tracks are recomputed reactively via `$effect` whenever latency, smoothing, pen speed, or path type change. Track B is only displayed when pointer smoothing > 0 (otherwise identical to Track A). Same for Track C and brush smoothing.
+Tracks are recomputed reactively via `$effect` whenever latency, smoothing, pen speed, or path type change. Track B is normally only displayed when pointer smoothing > 0 (otherwise identical to Track A), and Track C when brush smoothing > 0. However, when a parent point is hidden (e.g., pen hidden), child tracks are shown regardless of smoothing so there is always a visible track for each shown point.
 
 ## Screen Simulation
 
@@ -253,12 +253,14 @@ brushSpacing                        — Min pixel distance between trail points 
 brushTrailLength                    — Max trail buffer size (5–300, default 180)
 smoothStroke                        — Enable Catmull-Rom + subdivision rendering
 reportRate                          — Tablet report rate in Hz (1–60)
+showPen                              — Pen visibility (header checkbox in PEN section; hides pen, label, track, circle for A)
+showPointer                          — OS pointer visibility (header checkbox in OS POINTER section; hides pointer, label, track, circle for B)
+showBrushStroke                      — Brush stroke visibility (header checkbox in BRUSH section; hides stroke, label, track, circle for C)
+pointerStyle                        — OS pointer style (mouse/crosshair)
+pointerSize                         — OS pointer scale factor (1, 2, 4, or 8; default 1)
 showLabels                           — Toggle all letter labels (a, b, c)
 showTracks                           — Toggle all track lines
 showCircles                          — Toggle all dotted circles
-showPointer, pointerStyle           — OS pointer visibility and style (mouse/crosshair)
-pointerSize                         — OS pointer scale factor (1, 2, 4, or 8; default 1)
-showBrushStroke                     — Brush stroke visibility
 aspectRatio                         — Canvas aspect ratio ('16:9', '16:10', '4:3', '1:1'; default '16:9')
 screenMode                          — Enable simulated screen layer
 screenResolution                    — Screen width in simulated pixels (80–320)
@@ -305,10 +307,10 @@ Preset management UI component. Provides a save input field, a scrollable preset
 Title bar and playback control buttons: Play/Pause (frozen), Stop Pen/Resume Pen (paused), Restart, and Reset All. Buttons use fixed min-width to prevent layout shift when labels change.
 
 ### `src/components/SidePanel.svelte`
-Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). Sections: PEN (pen speed, path type), TABLET (latency, smoothing, report rate), OS POINTER (pointer visibility, pointer style, pointer size), BRUSH (brush latency/smoothing, size/spacing/trail, stroke/smooth toggles), VIEW (unified labels/tracks/circles toggles for all points), DISPLAY (aspect ratio, screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark checkboxes (#4a4a4a unchecked, #7089a8 checked), dark slider track (#4a4a4a) with slate gray thumb (#7089a8), dark dropdowns (#4a4a4a background, #ccc text), thin custom scrollbar (6px, #555) with 12px right padding for clearance.
+Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). PEN, OS POINTER, and BRUSH sections have header checkboxes that control full visibility of their respective points (hiding the point also hides its label, track, and circle). Sections: PEN (pen speed, path type), TABLET (latency, smoothing, report rate), OS POINTER (pointer style, pointer size), BRUSH (brush latency/smoothing, size/spacing/trail, smooth stroke toggle), VIEW (unified labels/tracks/circles toggles for all points), DISPLAY (aspect ratio, screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark checkboxes (#4a4a4a unchecked, #7089a8 checked), dark slider track (#4a4a4a) with slate gray thumb (#7089a8), dark dropdowns (#4a4a4a background, #ccc text), thin custom scrollbar (6px, #555) with 12px right padding for clearance.
 
 ### `src/components/CollapsibleSection.svelte`
-Reusable collapsible section wrapper with a clickable header showing a ▼/▶ indicator and a title. Content is shown/hidden based on collapsed state.
+Reusable collapsible section wrapper with a clickable header showing a ▼/▶ indicator and a title. Content is shown/hidden based on collapsed state. Supports an optional `headerExtra` snippet slot for placing controls (e.g., checkboxes) in the header row alongside the title.
 
 ### `src/components/Slider.svelte`
 Reusable slider: label and value on the same row (label left-aligned, value right-aligned), range track underneath. Custom dark-themed styling. Bindable `value` prop.

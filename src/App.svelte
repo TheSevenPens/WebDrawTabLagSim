@@ -17,6 +17,7 @@
   let brushTrailLength = $state(180);
 
   // Visibility toggles
+  let showPen = $state(true);
   let showLabels = $state(true);
   let showTracks = $state(true);
   let showCircles = $state(true);
@@ -66,6 +67,7 @@
     brushSpacing = 0;
     smoothStroke = false;
     brushTrailLength = 180;
+    showPen = true;
     showLabels = true;
     showTracks = true;
     showCircles = true;
@@ -88,7 +90,7 @@
       pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
       penSpeed, pathType, brushSize, reportRate, brushSpacing,
       smoothStroke, brushTrailLength,
-      showLabels, showTracks, showCircles,
+      showPen, showLabels, showTracks, showCircles,
       showPointer, pointerStyle, pointerSize, showBrushStroke,
       screenMode, screenResolution, screenRefreshRate, screenResponseTime,
       showPixelGrid, screenAntiAlias, aspectRatio,
@@ -107,6 +109,7 @@
     if (d.brushSpacing != null) brushSpacing = d.brushSpacing;
     if (d.smoothStroke != null) smoothStroke = d.smoothStroke;
     if (d.brushTrailLength != null) brushTrailLength = d.brushTrailLength;
+    if (d.showPen != null) showPen = d.showPen;
     if (d.showLabels != null) showLabels = d.showLabels;
     if (d.showTracks != null) showTracks = d.showTracks;
     if (d.showCircles != null) showCircles = d.showCircles;
@@ -129,7 +132,7 @@
 
 <div class="main-row">
   <SidePanel
-    bind:penSpeed bind:pathType
+    bind:penSpeed bind:pathType bind:showPen
     bind:pointerLatency bind:pointerSmoothing bind:reportRate
     bind:showLabels bind:showTracks bind:showCircles
     bind:showPointer bind:pointerStyle bind:pointerSize
@@ -148,7 +151,7 @@
       {pointerLatency} {pointerSmoothing}
       {brushLatency} {brushSmoothing}
       {penSpeed}
-      {showLabels} {showTracks} {showCircles}
+      {showPen} {showLabels} {showTracks} {showCircles}
       {showPointer} {pointerStyle} {pointerSize}
       {showBrushStroke}
       {pathType}

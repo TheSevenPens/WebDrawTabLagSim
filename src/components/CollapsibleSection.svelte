@@ -1,13 +1,22 @@
 <script>
-  let { title, open = true, children } = $props();
+  let { title, open = true, children, headerExtra } = $props();
   let isOpen = $state(open);
 </script>
 
 <div class="section" class:collapsed={!isOpen}>
-  <button class="section-header" onclick={() => isOpen = !isOpen}>
-    <span class="arrow">{isOpen ? '▼' : '▶'}</span>
-    <span class="title">{title}</span>
-  </button>
+  <div class="section-header-row">
+    <button class="section-header" onclick={() => isOpen = !isOpen}>
+      <span class="arrow">{isOpen ? '▼' : '▶'}</span>
+      <span class="title">{title}</span>
+    </button>
+    {#if headerExtra}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <span class="header-extra" onclick={(e) => e.stopPropagation()}>
+        {@render headerExtra()}
+      </span>
+    {/if}
+  </div>
   {#if isOpen}
     <div class="section-body">
       {@render children()}
@@ -18,6 +27,15 @@
 <style>
   .section {
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-extra {
+    display: flex;
+    align-items: center;
   }
   .section-header {
     display: flex;

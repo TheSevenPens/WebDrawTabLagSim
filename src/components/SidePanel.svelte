@@ -7,6 +7,7 @@
     // Pen input
     penSpeed = $bindable(),
     pathType = $bindable(),
+    showPen = $bindable(),
     // Pointer
     pointerLatency = $bindable(),
     pointerSmoothing = $bindable(),
@@ -42,6 +43,9 @@
 
 <div class="side-panel">
   <CollapsibleSection title="PEN" open={false}>
+    {#snippet headerExtra()}
+      <input type="checkbox" bind:checked={showPen} class="header-checkbox">
+    {/snippet}
     <Slider label="Speed" min={0.5} max={10} step={0.5} bind:value={penSpeed} />
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -61,39 +65,39 @@
   </CollapsibleSection>
 
   <CollapsibleSection title="OS POINTER" open={false}>
-    <label class="checkbox-single"><input type="checkbox" bind:checked={showPointer}> Pointer</label>
-    {#if showPointer}
-      <div class="select-row">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>Style</label>
-        <select bind:value={pointerStyle}>
-          <option value="mouse">Mouse</option>
-          <option value="crosshair">Crosshair</option>
-        </select>
-      </div>
-      <div class="select-row">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>Size</label>
-        <select bind:value={pointerSize}>
-          <option value={1}>1x</option>
-          <option value={2}>2x</option>
-          <option value={4}>4x</option>
-          <option value={8}>8x</option>
-        </select>
-      </div>
-    {/if}
+    {#snippet headerExtra()}
+      <input type="checkbox" bind:checked={showPointer} class="header-checkbox">
+    {/snippet}
+    <div class="select-row">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>Style</label>
+      <select bind:value={pointerStyle}>
+        <option value="mouse">Mouse</option>
+        <option value="crosshair">Crosshair</option>
+      </select>
+    </div>
+    <div class="select-row">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>Size</label>
+      <select bind:value={pointerSize}>
+        <option value={1}>1x</option>
+        <option value={2}>2x</option>
+        <option value={4}>4x</option>
+        <option value={8}>8x</option>
+      </select>
+    </div>
   </CollapsibleSection>
 
   <CollapsibleSection title="BRUSH" open={false}>
+    {#snippet headerExtra()}
+      <input type="checkbox" bind:checked={showBrushStroke} class="header-checkbox">
+    {/snippet}
     <Slider label="Latency" min={0} max={80} bind:value={brushLatency} />
     <Slider label="Smoothing" min={0} max={50} bind:value={brushSmoothing} />
     <Slider label="Size" min={1} max={30} step={1} bind:value={brushSize} />
     <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
     <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
-    <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showBrushStroke}> Stroke</label>
-      <label><input type="checkbox" bind:checked={smoothStroke}> Smooth</label>
-    </div>
+    <label class="checkbox-single"><input type="checkbox" bind:checked={smoothStroke}> Smooth stroke</label>
   </CollapsibleSection>
 
   <CollapsibleSection title="VIEW" open={false}>
@@ -191,5 +195,9 @@
   .select-row select option {
     background: #4a4a4a;
     color: #ccc;
+  }
+  :global(.header-checkbox) {
+    cursor: pointer;
+    margin-right: 4px;
   }
 </style>

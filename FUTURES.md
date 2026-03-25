@@ -144,3 +144,4 @@ Approximately 30 lines of additional code in `screen.js` (inside `renderScreenTo
 - **Remember collapsed section state**: Persist which sections are expanded/collapsed in localStorage so users don't have to re-expand their preferred sections on every page load.
 - **Responsive side panel**: Allow the side panel to be resized by dragging, or auto-collapse on narrow viewports.
 - **Keyboard shortcuts**: Add hotkeys for common actions (space for play/pause, R for restart, etc.).
+- **Full-screen canvas with overlay UI**: Remove the side panel entirely and let the animation fill the whole page. Controls would appear as an overlay on top of the canvas (e.g., a floating panel or drawer that can be toggled). User-suggested improvement to maximize the animation area.

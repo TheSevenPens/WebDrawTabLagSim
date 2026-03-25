@@ -21,6 +21,7 @@
     brushLatency,
     brushSmoothing,
     penSpeed,
+    showPen,
     showLabels,
     showTracks,
     showCircles,
@@ -331,13 +332,13 @@
       ctx.fillRect(0, 0, W, H);
 
       // Deterministic tracks (back to front, always full-res)
-      if (showTracks) {
+      if (showTracks && showPen) {
         drawTrack(ctx, trackA, COLORS.circleA + '80');
       }
-      if (showTracks && pointerSmoothing > 0) {
+      if (showTracks && showPointer && (pointerSmoothing > 0 || !showPen)) {
         drawTrack(ctx, trackB, COLORS.circleB + '80');
       }
-      if (showTracks && brushSmoothing > 0) {
+      if (showTracks && showBrushStroke && (brushSmoothing > 0 || !showPointer)) {
         drawTrack(ctx, trackC, COLORS.circleC + '80');
       }
 
@@ -373,10 +374,10 @@
         renderScreenToMain(ctx, screen, W, H, showPixelGrid);
 
         // Draw ideal overlays on top (ground truth elements)
-        drawPosition(ctx, posC, 'c', showCircles, showLabels);
-        drawPosition(ctx, posB, 'b', showCircles, showLabels);
-        drawPen(ctx, posA.x, posA.y);
-        drawPosition(ctx, posA, 'a', showCircles, showLabels);
+        if (showBrushStroke) drawPosition(ctx, posC, 'c', showCircles, showLabels);
+        if (showPointer) drawPosition(ctx, posB, 'b', showCircles, showLabels);
+        if (showPen) drawPen(ctx, posA.x, posA.y);
+        if (showPen) drawPosition(ctx, posA, 'a', showCircles, showLabels);
 
       } else {
         // === ORIGINAL PATH ===
@@ -385,14 +386,14 @@
         if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
 
         // Draw elements back to front
-        drawPosition(ctx, posC, 'c', showCircles, showLabels);
+        if (showBrushStroke) drawPosition(ctx, posC, 'c', showCircles, showLabels);
         if (showPointer) {
           if (pointerStyle === 'crosshair') drawCrosshair(ctx, posB.x, posB.y, pointerSize);
           else drawPointer(ctx, posB.x, posB.y, pointerSize);
         }
-        drawPosition(ctx, posB, 'b', showCircles, showLabels);
-        drawPen(ctx, posA.x, posA.y);
-        drawPosition(ctx, posA, 'a', showCircles, showLabels);
+        if (showPointer) drawPosition(ctx, posB, 'b', showCircles, showLabels);
+        if (showPen) drawPen(ctx, posA.x, posA.y);
+        if (showPen) drawPosition(ctx, posA, 'a', showCircles, showLabels);
       }
 
       // Blit offscreen buffer to visible canvas (pixel-to-pixel, no transform)
