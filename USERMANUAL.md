@@ -29,25 +29,19 @@ The top panel contains the title and playback controls:
 
 All controls are organized in collapsible sections. Click a section header (▶) to expand it, click again (▼) to collapse. All sections start collapsed on page load.
 
-**GESTURE section**
-- **Pen Speed** (0.5–10) — how fast the pen tip moves along its path. Lower values make it easier to observe lag effects.
+**PEN section**
+- **Speed** (0.5–10) — how fast the pen tip moves along its path. Lower values make it easier to observe lag effects.
 - **Path** — the shape the pen tip follows: Lissajous (pretzel-like curve), Circle, or Star (pentagram). Changing path type auto-restarts the animation.
-- **Label a** — toggle the letter label under point a.
-- **Track a** — toggle the thin blue path line for point a.
-- **Circle a** — toggle the dotted circle around point a.
 
 **TABLET section**
 - **Latency** (0–80) — pure time delay in animation frames. Higher values push b further behind a along the path.
 - **Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
 - **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every frame. At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
 
-**OS section**
+**OS POINTER section**
 - **Pointer** — toggle visibility of the mouse cursor or crosshair drawn at point b.
-- **Label b** — toggle the letter label under point b.
-- **Track b** — toggle the thin red path line for point b.
-- **Circle b** — toggle the dotted circle around point b.
-- **Pointer Style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
-- **Pointer Size** — dropdown to scale the OS pointer: 1x, 2x, 4x, or 8x. Scales both the mouse cursor icon and the crosshair. Default is 1x.
+- **Style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
+- **Size** — dropdown to scale the OS pointer: 1x, 2x, 4x, or 8x. Scales both the mouse cursor icon and the crosshair. Default is 1x.
 
 **BRUSH section**
 - **Brush Latency** (0–80) — time delay from b to c, same concept as pointer latency.
@@ -55,11 +49,13 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Brush Size** (1–30) — size of the brush stroke. Default is 4.
 - **Brush Spacing** (0–50) — minimum pixel distance c must travel before a new stroke segment is rendered. At 0 (default), rendering is continuous. Higher values create a segmented stroke that reveals how real brush engines sample at intervals. Try values of 20–40 to see the effect clearly.
 - **Brush Trail** (5–300) — how many sample points the stroke retains. Reduce this if the stroke loops back into itself at high spacing values.
-- **Label c** — toggle the letter label under point c.
-- **Track c** — toggle the thin green path line for point c.
-- **Circle c** — toggle the dotted circle around point c.
-- **Brush stroke** — toggle the painted trail behind point c.
-- **Smooth stroke** — enables Catmull-Rom spline rendering for a smoother brush mark.
+- **Stroke** — toggle the painted trail behind point c.
+- **Smooth** — enables Catmull-Rom spline rendering for a smoother brush mark.
+
+**VIEW section**
+- **Labels** — toggle all letter labels (a, b, c) on or off at once.
+- **Tracks** — toggle all track lines (the thin colored path lines) on or off at once.
+- **Circles** — toggle all dotted circles around points a, b, and c on or off at once.
 
 **DISPLAY section**
 - **Aspect Ratio** — dropdown to set the canvas aspect ratio: 16:9 (default), 16:10, 4:3, or 1:1. The canvas height stays constant at 600px; width adjusts to match the selected ratio. Changing aspect ratio restarts the simulation.

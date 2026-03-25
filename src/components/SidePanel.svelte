@@ -11,21 +11,15 @@
     pointerLatency = $bindable(),
     pointerSmoothing = $bindable(),
     reportRate = $bindable(),
-    showA = $bindable(),
-    showTrackA = $bindable(),
-    showCircleA = $bindable(),
+    showLabels = $bindable(),
+    showTracks = $bindable(),
+    showCircles = $bindable(),
     showPointer = $bindable(),
     pointerStyle = $bindable(),
     pointerSize = $bindable(),
-    showB = $bindable(),
-    showTrackB = $bindable(),
-    showCircleB = $bindable(),
     // Brush
     brushLatency = $bindable(),
     brushSmoothing = $bindable(),
-    showC = $bindable(),
-    showTrackC = $bindable(),
-    showCircleC = $bindable(),
     // Brush engine
     brushSize = $bindable(),
     brushSpacing = $bindable(),
@@ -47,7 +41,7 @@
 </script>
 
 <div class="side-panel">
-  <CollapsibleSection title="GESTURE" open={false}>
+  <CollapsibleSection title="PEN" open={false}>
     <Slider label="Speed" min={0.5} max={10} step={0.5} bind:value={penSpeed} />
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -58,11 +52,6 @@
         <option value="star">Star</option>
       </select>
     </div>
-    <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showA}> Label</label>
-      <label><input type="checkbox" bind:checked={showTrackA}> Track</label>
-      <label><input type="checkbox" bind:checked={showCircleA}> Circle</label>
-    </div>
   </CollapsibleSection>
 
   <CollapsibleSection title="TABLET" open={false}>
@@ -71,15 +60,8 @@
     <Slider label="Report Rate (Hz)" min={1} max={60} bind:value={reportRate} />
   </CollapsibleSection>
 
-  <CollapsibleSection title="OS" open={false}>
-    <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showPointer}> Pointer</label>
-      <label><input type="checkbox" bind:checked={showB}> Label</label>
-    </div>
-    <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showTrackB}> Track</label>
-      <label><input type="checkbox" bind:checked={showCircleB}> Circle</label>
-    </div>
+  <CollapsibleSection title="OS POINTER" open={false}>
+    <label class="checkbox-single"><input type="checkbox" bind:checked={showPointer}> Pointer</label>
     {#if showPointer}
       <div class="select-row">
         <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -109,13 +91,16 @@
     <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
     <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
     <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showC}> Label</label>
-      <label><input type="checkbox" bind:checked={showTrackC}> Track</label>
-      <label><input type="checkbox" bind:checked={showCircleC}> Circle</label>
-    </div>
-    <div class="checkbox-row">
       <label><input type="checkbox" bind:checked={showBrushStroke}> Stroke</label>
       <label><input type="checkbox" bind:checked={smoothStroke}> Smooth</label>
+    </div>
+  </CollapsibleSection>
+
+  <CollapsibleSection title="VIEW" open={false}>
+    <div class="checkbox-row">
+      <label><input type="checkbox" bind:checked={showLabels}> Labels</label>
+      <label><input type="checkbox" bind:checked={showTracks}> Tracks</label>
+      <label><input type="checkbox" bind:checked={showCircles}> Circles</label>
     </div>
   </CollapsibleSection>
 
