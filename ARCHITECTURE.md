@@ -15,17 +15,17 @@ src/
 ├── app.css                     — Global styles (body, reset)
 ├── components/
 │   ├── Canvas.svelte           — Canvas element, render loop, double buffering, HiDPI
-│   ├── SidePanel.svelte        — Legend + visibility checkboxes + pointer style dropdown
-│   ├── Slider.svelte           — Reusable slider control (label + range + value)
-│   ├── LatencySmoothing.svelte — Grouped latency + smoothing slider pair
-│   ├── Controls.svelte         — Bottom control bar (slider groups + path selector)
+│   ├── TopPanel.svelte         — Title bar + playback controls (Play/Pause, Stop/Resume Pen, Restart, Reset All)
+│   ├── SidePanel.svelte        — Left panel with all controls in collapsible sections
+│   ├── CollapsibleSection.svelte — Reusable collapsible ▼/▶ section wrapper
+│   ├── Slider.svelte           — Reusable slider control (label left, value right, track underneath)
 │   └── Presets.svelte          — Preset management UI (save, load, rename, delete, export, import)
 └── lib/
     ├── constants.js            — Colors, font, sizes, offsets, buffer limits
     ├── simulation.js           — Lag pipeline: delay + EMA + report rate for B and C
     ├── animation.js            — Path functions (Lissajous, Circle, Star), track pre-computation
     ├── drawing.js              — All canvas drawing primitives + brush stroke rendering
-    ├── screen.js               — Simulated screen: pixelation, refresh rate, response time, grid, glow
+    ├── screen.js               — Simulated screen: pixelation, refresh rate, response time, grid
     └── presets.js              — Pure localStorage CRUD for named preset configurations
 .github/workflows/deploy.yml   — GitHub Actions: build and deploy to Pages
 ARCHITECTURE.md                 — This file
@@ -36,21 +36,20 @@ FUTURES.md                      — Ideas for improvements
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                    Title                         │
+│  Title  [Play/Pause] [Stop/Resume] [Restart] [Reset All]  │  ← TopPanel
 ├──────────────┬──────────────────────────────────┤
 │  Side Panel  │            Canvas                 │
-│  - Legend    │       (animation area)            │
-│  - Toggles   │                                   │
-├──────────────┴──────────────────────────────────┤
-│              Controls (HTML)                     │
-│  [Input] [Pointer Lat+Smooth+Rate] [Brush]       │
-│  [Brush Engine] [Display (if screen mode on)]    │
-└─────────────────────────────────────────────────┘
+│  ▶ GESTURE   │       (animation area)            │
+│  ▶ TABLET    │                                   │
+│  ▶ BRUSH     │    [📷]                    [⛶]    │
+│  ▶ DISPLAY   │                                   │
+│  ▶ PRESETS   │                                   │
+└──────────────┴──────────────────────────────────┘
 ```
 
-- **Side Panel** (left, `SidePanel.svelte`): Legend and all checkbox/dropdown controls stacked vertically.
-- **Canvas** (center-right, `Canvas.svelte`): Double-buffered HiDPI `<canvas>` for animation.
-- **Controls** (bottom, `Controls.svelte`): Grouped sliders and path selector.
+- **Top Panel** (`TopPanel.svelte`): Title and playback controls (Play/Pause, Stop Pen/Resume Pen, Restart, Reset All).
+- **Side Panel** (left, `SidePanel.svelte`, 280–320px): All controls organized in collapsible sections (all collapsed by default). Sections: GESTURE, TABLET, BRUSH, DISPLAY, PRESETS.
+- **Canvas** (center-right, `Canvas.svelte`): Double-buffered HiDPI `<canvas>` for animation. Screenshot button top-left, fullscreen button top-right.
 
 ## Lag Model
 
@@ -86,7 +85,7 @@ B (OS pointer) ──[brush latency + brush smoothing]──→ C (brush positio
                                                         ↓
                                               screenMode? → render to low-res screen canvas
                                                            → response time blending (ghosting)
-                                                           → composite with pixel grid / IPS glow
+                                                           → composite with pixel grid
 ```
 
 ## Brush Stroke Rendering
@@ -170,7 +169,7 @@ Spacing=30, Smooth=on:   ●═══●═══●═══●═══  (curv
 
 ### Brush Size
 
-The **Brush Size** slider (0.1–3, default 1) is a global multiplier applied to all width calculations in `drawBrushStroke`. At 1.0, the stroke peaks at 36px wide. At 0.5, it peaks at 18px. At 3.0, it peaks at 108px.
+The **Brush Size** slider (1–30, default 4) uses human-friendly numbers. Internally the drawing code converts to a scale factor via `scale = brushSize / 10`.
 
 ## Path Types
 
@@ -182,7 +181,7 @@ The pen tip (A) can follow different deterministic paths, selectable via dropdow
 | **Circle** | Simple elliptical orbit |
 | **Star** | Pentagram — pen moves directly between the 5 star points in skip-one order |
 
-All paths share the same period (2π) and are centered on the canvas with configurable amplitude.
+All paths share the same period (2π) and are centered on the canvas with configurable amplitude. Circle path speed is normalized (CIRCLE_SPEED = 2.5) to match Lissajous/Star perceived speed. Changing path type auto-restarts the animation.
 
 ## Deterministic Tracks
 
@@ -230,10 +229,6 @@ Fast response (1ms) → near-instant transition. Slow response (50ms) → visibl
 
 When enabled, thin semi-transparent lines are drawn at every pixel boundary after compositing, making the individual simulated pixels clearly delineated.
 
-### IPS Glow
-
-A subtle bloom effect: the scaled-up screen image is drawn to a temporary canvas, blurred proportional to pixel size, then composited with `globalCompositeOperation = 'lighter'` at low alpha. This simulates the diffuse backlight bleed characteristic of IPS panels.
-
 ## HiDPI Rendering
 
 The canvas backing store is sized at `logicalWidth × dpr` by `logicalHeight × dpr` (where `dpr = devicePixelRatio`), while CSS dimensions remain at logical size. Each frame applies `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` so all drawing code uses logical coordinates. The transform is reset before blitting the offscreen buffer.
@@ -247,7 +242,7 @@ pointerLatency, pointerSmoothing    — Pointer lag parameters
 brushLatency, brushSmoothing        — Brush lag parameters
 penSpeed                            — Animation speed (0.5–10, step 0.5)
 pathType                            — Path shape: 'lissajous' | 'circle' | 'star'
-brushSize                           — Brush stroke scale factor (0.1–3)
+brushSize                           — Brush stroke size (1–30, default 4; scale = brushSize / 10)
 brushSpacing                        — Min pixel distance between trail points (0 = continuous)
 brushTrailLength                    — Max trail buffer size (5–300, default 180)
 smoothStroke                        — Enable Catmull-Rom + subdivision rendering
@@ -262,10 +257,11 @@ screenResolution                    — Screen width in simulated pixels (80–3
 screenRefreshRate                   — Screen refresh rate in Hz (10–144)
 screenResponseTime                  — Pixel response time in ms (1–50)
 showPixelGrid                       — Show grid lines between simulated pixels
-showIpsGlow                         — Enable IPS glow bloom effect
+frozen                              — Play/Pause state (true freeze, entire visualization stops)
+paused                              — Stop Pen/Resume Pen state (pen stops, b and c catch up)
 ```
 
-State flows down via props. `SidePanel` and `Controls` use `bind:` for two-way binding. `Canvas` receives read-only props.
+State flows down via props. `SidePanel` uses `bind:` for two-way binding. `Canvas` receives read-only props.
 
 ## Module Responsibilities
 
@@ -286,10 +282,10 @@ All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with 
 - `drawBrushStroke(ctx, trail, brushSize, smoothStroke)` — Main stroke renderer with branching for smooth/straight modes
 
 ### `src/lib/screen.js`
-Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `shouldRefresh(screen, dtMs, hz)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid, showGlow)`, `drawPixelGrid(ctx, ...)`, `drawIpsGlow(ctx, ...)`.
+Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `shouldRefresh(screen, dtMs, hz)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
 
 ### `src/components/Canvas.svelte`
-The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top.
+The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
 
 ### `src/lib/presets.js`
 Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-presets`. Format: `[{ name, data }]` where `data` contains all 30 settings values. Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
@@ -297,20 +293,20 @@ Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-pr
 ### `src/components/Presets.svelte`
 Preset management UI component. Provides a save input field, a scrollable preset list (click to load, rename via pencil icon, delete via x button), and export/import buttons. Uses a `children` snippet prop to render inside SidePanel. Calls into `presets.js` for all storage operations.
 
+### `src/components/TopPanel.svelte`
+Title bar and playback control buttons: Play/Pause (frozen), Stop Pen/Resume Pen (paused), Restart, and Reset All. Buttons use fixed min-width to prevent layout shift when labels change.
+
 ### `src/components/SidePanel.svelte`
-Legend text + checkbox/dropdown controls (including smooth stroke toggle). All toggle props use `$bindable()`. Accepts a `children` prop and renders it via `{@render children()}` below the Restart/Reset All buttons, used to mount the Presets component.
+Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). Sections: GESTURE (pen speed, path type, label/track/circle for a), TABLET (pointer latency/smoothing, report rate, pointer visibility/label/track/circle for b, pointer style), BRUSH (brush latency/smoothing, size/spacing/trail, label/track/circle for c, stroke/smooth toggles), DISPLAY (screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark track (#4a4a4a), slate gray thumb/accent (#7089a8).
+
+### `src/components/CollapsibleSection.svelte`
+Reusable collapsible section wrapper with a clickable header showing a ▼/▶ indicator and a title. Content is shown/hidden based on collapsed state.
 
 ### `src/components/Slider.svelte`
-Reusable slider: label + range input (with configurable step) + value display to the right. Bindable `value` prop.
-
-### `src/components/LatencySmoothing.svelte`
-Composite component: groups a Latency slider and a Smoothing slider under a shared label. Used for both the Pointer and Brush control groups.
-
-### `src/components/Controls.svelte`
-Composes four control groups: User Input (Pen Speed + Path), Pointer (Latency + Smoothing + Report Rate), Brush (Latency + Smoothing), and Brush Engine (Size + Spacing + Trail). When screen mode is enabled, a fifth Display group appears with Resolution, Refresh Rate, and Response Time sliders.
+Reusable slider: label and value on the same row (label left-aligned, value right-aligned), range track underneath. Custom dark-themed styling. Bindable `value` prop.
 
 ### `src/App.svelte`
-Root component. Declares all `$state()` runes. Composes `SidePanel`, `Canvas`, `Controls`, and `Presets` with `bind:` directives. Provides `getCurrentSettings()` to snapshot all 30 state values into a plain object, and `loadPreset(data)` to restore state from a saved preset object. `Presets` is mounted as a child of `SidePanel` via the children snippet prop.
+Root component. Declares all `$state()` runes. Composes `TopPanel`, `SidePanel`, `Canvas`, and `Presets` with `bind:` directives. Provides `getCurrentSettings()` to snapshot all state values into a plain object, and `loadPreset(data)` to restore state from a saved preset object. `Presets` is mounted as a child of `SidePanel` via the children snippet prop.
 
 ## Data Flow
 
@@ -347,17 +343,16 @@ penSpeed → time increment → autoPosition(time, pathType) → posA
 
 ```
 App.svelte
+├── TopPanel.svelte
 ├── Canvas.svelte
 │   ├── lib/constants.js
 │   ├── lib/simulation.js ─── lib/constants.js, lib/animation.js
 │   ├── lib/drawing.js ────── lib/constants.js
 │   ├── lib/animation.js ──── lib/constants.js
 │   └── lib/screen.js ─────── lib/constants.js
-├── SidePanel.svelte
-│   └── Presets.svelte (via children snippet)
-│       └── lib/presets.js
-└── Controls.svelte
+└── SidePanel.svelte
+    ├── CollapsibleSection.svelte
     ├── Slider.svelte
-    └── LatencySmoothing.svelte
-        └── Slider.svelte
+    └── Presets.svelte (via children snippet)
+        └── lib/presets.js
 ```

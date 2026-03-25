@@ -16,52 +16,56 @@ The **brush stroke** is the painted mark trailing behind point c, simulating wha
 
 ## Controls
 
+### Top Panel
+
+The top panel contains the title and playback controls:
+
+- **Play/Pause** — freezes the entire visualization. Everything stops completely: pen, pointer, brush, all animation. Click again to resume.
+- **Stop Pen/Resume Pen** — stops only the pen tip (a) from moving. Points b and c continue to catch up naturally to a's last position. Click again to resume pen movement.
+- **Restart** — clears all history and restarts the animation from the beginning.
+- **Reset All** — restores all settings to their default values and restarts.
+
 ### Side Panel (left of animation)
 
-**Legend** — explains what a, b, and c represent.
+All controls are organized in collapsible sections. Click a section header (▶) to expand it, click again (▼) to collapse. All sections start collapsed on page load.
 
-**Visibility checkboxes:**
-
-| Checkbox | What it toggles |
-|---|---|
-| Label a / b / c | The letter labels under each point |
-| OS pointer | The mouse cursor or crosshair drawn at point b |
-| Track a / b / c | The thin path line for each point |
-| Circle a / b / c | The dotted circle around each point |
-| Brush stroke | The painted trail behind point c |
-| Smooth stroke | Enables Catmull-Rom spline rendering for a smoother brush mark |
-| Screen mode | Renders pointer and brush stroke onto a simulated pixelated display |
-| Pixel grid | Shows grid lines between simulated pixels (only when screen mode is on) |
-| IPS glow | Adds a subtle bloom effect simulating IPS panel backlight bleed (only when screen mode is on) |
-
-**OS pointer style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
-
-### Bottom Controls
-
-Controls are organized into four groups that mirror the signal pipeline from left to right:
-
-**User Input**
+**GESTURE section**
 - **Pen Speed** (0.5–10) — how fast the pen tip moves along its path. Lower values make it easier to observe lag effects.
-- **Path** — the shape the pen tip follows: Lissajous (pretzel-like curve), Circle, or Star (pentagram).
+- **Path** — the shape the pen tip follows: Lissajous (pretzel-like curve), Circle, or Star (pentagram). Changing path type auto-restarts the animation.
+- **Label a** — toggle the letter label under point a.
+- **Track a** — toggle the thin blue path line for point a.
+- **Circle a** — toggle the dotted circle around point a.
 
-**Pointer (a → b)**
-- **Latency** (0–80) — pure time delay in animation frames. Higher values push b further behind a along the path.
-- **Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
+**TABLET section**
+- **Pointer Latency** (0–80) — pure time delay in animation frames. Higher values push b further behind a along the path.
+- **Pointer Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
 - **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every frame. At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
+- **OS pointer** — toggle visibility of the mouse cursor or crosshair drawn at point b.
+- **Label b** — toggle the letter label under point b.
+- **Track b** — toggle the thin red path line for point b.
+- **Circle b** — toggle the dotted circle around point b.
+- **Pointer style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
 
-**Brush (b → c)**
-- **Latency** (0–80) — time delay from b to c, same concept as pointer latency.
-- **Smoothing** (0–80) — EMA filter for the brush engine. When > 0, a green track appears showing c's smoothed trajectory.
-
-**Brush Engine**
-- **Brush Size** (0.1–3) — multiplier for the stroke width. At 1.0 (default), the stroke peaks around 36px wide.
+**BRUSH section**
+- **Brush Latency** (0–80) — time delay from b to c, same concept as pointer latency.
+- **Brush Smoothing** (0–80) — EMA filter for the brush engine. When > 0, a green track appears showing c's smoothed trajectory.
+- **Brush Size** (1–30) — size of the brush stroke. Default is 4.
 - **Brush Spacing** (0–50) — minimum pixel distance c must travel before a new stroke segment is rendered. At 0 (default), rendering is continuous. Higher values create a segmented stroke that reveals how real brush engines sample at intervals. Try values of 20–40 to see the effect clearly.
 - **Brush Trail** (5–300) — how many sample points the stroke retains. Reduce this if the stroke loops back into itself at high spacing values.
+- **Label c** — toggle the letter label under point c.
+- **Track c** — toggle the thin green path line for point c.
+- **Circle c** — toggle the dotted circle around point c.
+- **Brush stroke** — toggle the painted trail behind point c.
+- **Smooth stroke** — enables Catmull-Rom spline rendering for a smoother brush mark.
 
-**Display** (only visible when Screen mode is enabled)
+**DISPLAY section**
+- **Screen mode** — renders pointer and brush stroke onto a simulated pixelated display. When enabled, the following sub-options appear:
 - **Resolution (px)** (80–320) — width of the simulated screen in pixels. Height is derived at 16:10 aspect ratio. Lower values create larger, more visible pixels. Try 80 for dramatic pixelation.
 - **Refresh Rate (Hz)** (10–144) — how often the simulated screen updates. At 60 Hz it updates every frame. At 10 Hz the pointer visibly jumps between positions, showing the "sample-and-hold" behavior of real LCDs.
 - **Response Time (ms)** (1–50) — how fast individual pixels transition from one color to another. At 1ms transitions are near-instant. At 50ms you see visible ghosting — a smeared trail behind the moving pointer and brush stroke, caused by pixels still transitioning from their previous color.
+- **Pixel grid** — shows grid lines between simulated pixels.
+
+**PRESETS section** — see the Presets section below.
 
 ## Presets
 
@@ -82,6 +86,12 @@ The Presets panel appears in the side panel below the visibility checkboxes. It 
 Presets persist in your browser's localStorage, so they survive page reloads and browser restarts. They are local to the browser and device where they were created. Use export/import to transfer presets between browsers or devices.
 
 ## Things to Try
+
+### Freeze and inspect
+Click **Play/Pause** to freeze the entire visualization in place. This is useful for inspecting the exact positions of a, b, and c at a specific moment. Click again to resume.
+
+### Watch b and c catch up
+While the animation is running, click **Stop Pen/Resume Pen**. The pen tip (a) stops moving, but b and c continue sliding toward a's final position, showing how lag drains out of the pipeline. Click again to resume pen movement.
 
 ### See pointer lag in action
 Set Pointer Latency to 50, keep everything else at defaults. Watch how b trails behind a — this is the delay between where your pen physically is and where the OS thinks the cursor is.

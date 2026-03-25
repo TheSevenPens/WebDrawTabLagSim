@@ -16,6 +16,7 @@
     showCircleA = $bindable(),
     showPointer = $bindable(),
     pointerStyle = $bindable(),
+    pointerSize = $bindable(),
     showB = $bindable(),
     showTrackB = $bindable(),
     showCircleB = $bindable(),
@@ -38,6 +39,7 @@
     screenResponseTime = $bindable(),
     showPixelGrid = $bindable(),
     screenAntiAlias = $bindable(),
+    aspectRatio = $bindable(),
     // Actions
     getCurrentSettings,
     onLoadPreset,
@@ -67,6 +69,9 @@
     <Slider label="Latency" min={0} max={80} bind:value={pointerLatency} />
     <Slider label="Smoothing" min={0} max={50} bind:value={pointerSmoothing} />
     <Slider label="Report Rate (Hz)" min={1} max={60} bind:value={reportRate} />
+  </CollapsibleSection>
+
+  <CollapsibleSection title="OS" open={false}>
     <div class="checkbox-row">
       <label><input type="checkbox" bind:checked={showPointer}> Pointer</label>
       <label><input type="checkbox" bind:checked={showB}> Label</label>
@@ -82,6 +87,16 @@
         <select bind:value={pointerStyle}>
           <option value="mouse">Mouse</option>
           <option value="crosshair">Crosshair</option>
+        </select>
+      </div>
+      <div class="select-row">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label>Size</label>
+        <select bind:value={pointerSize}>
+          <option value={1}>1x</option>
+          <option value={2}>2x</option>
+          <option value={4}>4x</option>
+          <option value={8}>8x</option>
         </select>
       </div>
     {/if}
@@ -105,6 +120,16 @@
   </CollapsibleSection>
 
   <CollapsibleSection title="DISPLAY" open={false}>
+    <div class="select-row">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>Aspect Ratio</label>
+      <select bind:value={aspectRatio}>
+        <option value="16:9">16:9</option>
+        <option value="16:10">16:10</option>
+        <option value="4:3">4:3</option>
+        <option value="1:1">1:1</option>
+      </select>
+    </div>
     <label class="checkbox-single"><input type="checkbox" bind:checked={screenMode}> Screen mode</label>
     {#if screenMode}
       <Slider label="Resolution (px)" min={80} max={320} step={10} bind:value={screenResolution} />
@@ -127,11 +152,23 @@
   .side-panel {
     display: flex;
     flex-direction: column;
-    padding: 4px 0;
+    padding: 4px 12px 4px 0;
     min-width: 280px;
     max-width: 320px;
     max-height: calc(100vh - 80px);
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #555 transparent;
+  }
+  .side-panel::-webkit-scrollbar {
+    width: 6px;
+  }
+  .side-panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .side-panel::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
   }
   .checkbox-row {
     display: flex;

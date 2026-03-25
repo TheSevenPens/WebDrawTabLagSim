@@ -84,9 +84,9 @@ export function drawPen(ctx, x, y) {
   ctx.restore();
 }
 
-export function drawPointer(ctx, x, y) {
+export function drawPointer(ctx, x, y, scale = 1) {
   ctx.save();
-  const s = 1.4;
+  const s = 1.4 * scale;
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x, y + 20 * s);
@@ -99,14 +99,14 @@ export function drawPointer(ctx, x, y) {
   ctx.fillStyle = '#ffffff';
   ctx.fill();
   ctx.strokeStyle = '#222222';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1.5 * scale;
   ctx.stroke();
   ctx.restore();
 }
 
-export function drawCrosshair(ctx, x, y) {
-  const size = 14;
-  const gap = 4;
+export function drawCrosshair(ctx, x, y, scale = 1) {
+  const size = 14 * scale;
+  const gap = 4 * scale;
   const segments = [
     [x - size, y, x - gap, y],
     [x + gap, y, x + size, y],
@@ -116,7 +116,7 @@ export function drawCrosshair(ctx, x, y) {
   ctx.save();
   ctx.lineCap = 'round';
   ctx.strokeStyle = '#222222';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 4 * scale;
   segments.forEach(([x1, y1, x2, y2]) => {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -124,7 +124,7 @@ export function drawCrosshair(ctx, x, y) {
     ctx.stroke();
   });
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * scale;
   segments.forEach(([x1, y1, x2, y2]) => {
     ctx.beginPath();
     ctx.moveTo(x1, y1);

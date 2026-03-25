@@ -22,6 +22,7 @@
   let showC = $state(true);
   let showPointer = $state(true);
   let pointerStyle = $state('mouse');
+  let pointerSize = $state(1);
   let showCircleA = $state(true);
   let showCircleB = $state(true);
   let showCircleC = $state(true);
@@ -37,6 +38,7 @@
   let screenResponseTime = $state(5);
   let showPixelGrid = $state(false);
   let screenAntiAlias = $state(true);
+  let aspectRatio = $state('16:9');
 
   // Playback
   let paused = $state(false);
@@ -75,6 +77,7 @@
     showC = true;
     showPointer = true;
     pointerStyle = 'mouse';
+    pointerSize = 1;
     showCircleA = true;
     showCircleB = true;
     showCircleC = true;
@@ -88,6 +91,7 @@
     screenResponseTime = 5;
     showPixelGrid = false;
     screenAntiAlias = true;
+    aspectRatio = '16:9';
     restartKey++;
   }
 
@@ -96,11 +100,11 @@
       pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
       penSpeed, pathType, brushSize, reportRate, brushSpacing,
       smoothStroke, brushTrailLength,
-      showA, showB, showC, showPointer, pointerStyle,
+      showA, showB, showC, showPointer, pointerStyle, pointerSize,
       showCircleA, showCircleB, showCircleC,
       showTrackA, showTrackB, showTrackC, showBrushStroke,
       screenMode, screenResolution, screenRefreshRate, screenResponseTime,
-      showPixelGrid, screenAntiAlias,
+      showPixelGrid, screenAntiAlias, aspectRatio,
     };
   }
 
@@ -121,6 +125,7 @@
     if (d.showC != null) showC = d.showC;
     if (d.showPointer != null) showPointer = d.showPointer;
     if (d.pointerStyle != null) pointerStyle = d.pointerStyle;
+    if (d.pointerSize != null) pointerSize = d.pointerSize;
     if (d.showCircleA != null) showCircleA = d.showCircleA;
     if (d.showCircleB != null) showCircleB = d.showCircleB;
     if (d.showCircleC != null) showCircleC = d.showCircleC;
@@ -134,6 +139,7 @@
     if (d.screenResponseTime != null) screenResponseTime = d.screenResponseTime;
     if (d.showPixelGrid != null) showPixelGrid = d.showPixelGrid;
     if (d.screenAntiAlias != null) screenAntiAlias = d.screenAntiAlias;
+    if (d.aspectRatio != null) aspectRatio = d.aspectRatio;
     restartKey++;
   }
 </script>
@@ -145,7 +151,7 @@
     bind:penSpeed bind:pathType
     bind:pointerLatency bind:pointerSmoothing bind:reportRate
     bind:showA bind:showB bind:showC
-    bind:showPointer bind:pointerStyle
+    bind:showPointer bind:pointerStyle bind:pointerSize
     bind:showTrackA bind:showTrackB bind:showTrackC
     bind:showCircleA bind:showCircleB bind:showCircleC
     bind:brushLatency bind:brushSmoothing
@@ -154,6 +160,7 @@
     bind:screenMode bind:screenResolution bind:screenRefreshRate
     bind:screenResponseTime bind:showPixelGrid
     bind:screenAntiAlias
+    bind:aspectRatio
     {getCurrentSettings}
     onLoadPreset={loadPreset}
   />
@@ -163,7 +170,7 @@
       {brushLatency} {brushSmoothing}
       {penSpeed}
       {showA} {showB} {showC}
-      {showPointer} {pointerStyle}
+      {showPointer} {pointerStyle} {pointerSize}
       {showCircleA} {showCircleB} {showCircleC}
       {showTrackA} {showTrackB} {showTrackC}
       {showBrushStroke}
@@ -179,6 +186,7 @@
       {screenResponseTime}
       {showPixelGrid}
       {screenAntiAlias}
+      {aspectRatio}
       {paused}
       {frozen}
     />
