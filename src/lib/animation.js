@@ -63,6 +63,17 @@ function starPosition(t, cx, cy, rx, ry) {
 
 const PERIOD = 2 * Math.PI;
 
+// Each path type's visual period (the parameter range for one complete loop)
+function pathPeriod(pathType) {
+  switch (pathType) {
+    case 'circle': return PERIOD / CIRCLE_SPEED; // one full revolution
+    case 'star':
+    case 'lissajous':
+    default:
+      return PERIOD;
+  }
+}
+
 export const PATH_TYPES = ['lissajous', 'circle', 'star'];
 
 export function autoPosition(t, canvasWidth, canvasHeight, pathType = 'lissajous') {
@@ -85,15 +96,15 @@ export function autoPosition(t, canvasWidth, canvasHeight, pathType = 'lissajous
 /**
  * Compute how many simulation steps make up one full period at the given pen speed.
  */
-function stepsPerPeriod(penSpeed) {
-  return Math.round(PERIOD / (penSpeed * TIME_STEP_SCALE));
+function stepsPerPeriod(penSpeed, pathType = 'lissajous') {
+  return Math.round(pathPeriod(pathType) / (penSpeed * TIME_STEP_SCALE));
 }
 
 /**
  * Pre-compute A's track as a closed loop, sampled at the same rate as runtime.
  */
 export function computeTrackA(canvasWidth, canvasHeight, penSpeed, pathType = 'lissajous') {
-  const steps = stepsPerPeriod(penSpeed);
+  const steps = stepsPerPeriod(penSpeed, pathType);
   const dt = penSpeed * TIME_STEP_SCALE;
   const points = [];
   for (let i = 0; i < steps; i++) {

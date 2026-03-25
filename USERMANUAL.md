@@ -37,14 +37,17 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Circle a** — toggle the dotted circle around point a.
 
 **TABLET section**
-- **Pointer Latency** (0–80) — pure time delay in animation frames. Higher values push b further behind a along the path.
-- **Pointer Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
+- **Latency** (0–80) — pure time delay in animation frames. Higher values push b further behind a along the path.
+- **Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
 - **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every frame. At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
-- **OS pointer** — toggle visibility of the mouse cursor or crosshair drawn at point b.
+
+**OS section**
+- **Pointer** — toggle visibility of the mouse cursor or crosshair drawn at point b.
 - **Label b** — toggle the letter label under point b.
 - **Track b** — toggle the thin red path line for point b.
 - **Circle b** — toggle the dotted circle around point b.
-- **Pointer style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
+- **Pointer Style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
+- **Pointer Size** — dropdown to scale the OS pointer: 1x, 2x, 4x, or 8x. Scales both the mouse cursor icon and the crosshair. Default is 1x.
 
 **BRUSH section**
 - **Brush Latency** (0–80) — time delay from b to c, same concept as pointer latency.
@@ -59,8 +62,9 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Smooth stroke** — enables Catmull-Rom spline rendering for a smoother brush mark.
 
 **DISPLAY section**
+- **Aspect Ratio** — dropdown to set the canvas aspect ratio: 16:9 (default), 16:10, 4:3, or 1:1. The canvas height stays constant at 600px; width adjusts to match the selected ratio. Changing aspect ratio restarts the simulation.
 - **Screen mode** — renders pointer and brush stroke onto a simulated pixelated display. When enabled, the following sub-options appear:
-- **Resolution (px)** (80–320) — width of the simulated screen in pixels. Height is derived at 16:10 aspect ratio. Lower values create larger, more visible pixels. Try 80 for dramatic pixelation.
+- **Resolution (px)** (80–320) — width of the simulated screen in pixels. Height is derived from the canvas aspect ratio. Lower values create larger, more visible pixels. Try 80 for dramatic pixelation.
 - **Refresh Rate (Hz)** (10–144) — how often the simulated screen updates. At 60 Hz it updates every frame. At 10 Hz the pointer visibly jumps between positions, showing the "sample-and-hold" behavior of real LCDs.
 - **Response Time (ms)** (1–50) — how fast individual pixels transition from one color to another. At 1ms transitions are near-instant. At 50ms you see visible ghosting — a smeared trail behind the moving pointer and brush stroke, caused by pixels still transitioning from their previous color.
 - **Pixel grid** — shows grid lines between simulated pixels.
@@ -71,7 +75,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 
 The Presets panel appears in the side panel below the visibility checkboxes. It lets you save, load, and manage named configurations so you can quickly switch between different setups.
 
-**Save a preset** — Type a name in the text field at the top of the Presets panel and click the Save button. All 30 current settings are stored under that name.
+**Save a preset** — Type a name in the text field at the top of the Presets panel and click the Save button. All current settings (including pointer size and aspect ratio) are stored under that name.
 
 **Load a preset** — Click the name of any saved preset in the list. All settings are instantly restored to the values stored in that preset.
 
