@@ -41,15 +41,16 @@ FUTURES.md                      — Ideas for improvements
 │  Side Panel  │            Canvas                 │
 │  ▶ GESTURE   │       (animation area)            │
 │  ▶ TABLET    │                                   │
-│  ▶ BRUSH     │    [📷]                    [⛶]    │
+│  ▶ OS        │    [📷]                    [⛶]    │
+│  ▶ BRUSH     │                                   │
 │  ▶ DISPLAY   │                                   │
 │  ▶ PRESETS   │                                   │
 └──────────────┴──────────────────────────────────┘
 ```
 
 - **Top Panel** (`TopPanel.svelte`): Title and playback controls (Play/Pause, Stop Pen/Resume Pen, Restart, Reset All).
-- **Side Panel** (left, `SidePanel.svelte`, 280–320px): All controls organized in collapsible sections (all collapsed by default). Sections: GESTURE, TABLET, BRUSH, DISPLAY, PRESETS.
-- **Canvas** (center-right, `Canvas.svelte`): Double-buffered HiDPI `<canvas>` for animation. Screenshot button top-left, fullscreen button top-right.
+- **Side Panel** (left, `SidePanel.svelte`, 280–320px): All controls organized in collapsible sections (all collapsed by default). Sections: GESTURE, TABLET, OS, BRUSH, DISPLAY, PRESETS.
+- **Canvas** (center-right, `Canvas.svelte`): Double-buffered HiDPI `<canvas>` for animation. Constant height of 600px; width computed from the selected aspect ratio. Screenshot button top-left, fullscreen button top-right (⛶ icon).
 
 ## Lag Model
 
@@ -64,7 +65,7 @@ The EMA formula: `output = α × input + (1 − α) × prev_output` where `α = 
 
 ### Report Rate
 
-In addition to latency and smoothing, point B is governed by a **report rate** that simulates the tablet's hardware update frequency. The animation runs at ~60fps, but B only updates its position on "report frames" determined by the report rate. Between reports, B holds its last position. This creates visible stepping/jumping at low report rates (e.g., 2-5 Hz), faithfully modeling how low-frequency tablets behave. The Report Rate slider is grouped with the Pointer controls since it is a pointer-related parameter.
+In addition to latency and smoothing, point B is governed by a **report rate** that simulates the tablet's hardware update frequency. The animation runs at ~60fps, but B only updates its position on "report frames" determined by the report rate. Between reports, B holds its last position. This creates visible stepping/jumping at low report rates (e.g., 2-5 Hz), faithfully modeling how low-frequency tablets behave. The Report Rate slider is grouped in the TABLET section since it is a tablet hardware parameter.
 
 ### Pipeline
 
@@ -199,7 +200,7 @@ When **Screen mode** is enabled, the OS pointer and brush stroke are rendered on
 
 ### Architecture
 
-A separate small offscreen canvas (`screen.canvas`) represents the simulated display. Its resolution is controlled by the **Resolution** slider (80–320 pixels wide, 16:10 aspect). The existing drawing functions (`drawBrushStroke`, `drawPointer`, `drawCrosshair`) are reused unmodified — a `ctx.scale()` transform maps logical coordinates to screen pixel coordinates.
+A separate small offscreen canvas (`screen.canvas`) represents the simulated display. Its resolution is controlled by the **Resolution** slider (80–320 pixels wide), with height derived from the canvas aspect ratio. The existing drawing functions (`drawBrushStroke`, `drawPointer`, `drawCrosshair`) are reused unmodified — a `ctx.scale()` transform maps logical coordinates to screen pixel coordinates.
 
 ### Two-Layer Rendering
 
@@ -229,6 +230,10 @@ Fast response (1ms) → near-instant transition. Slow response (50ms) → visibl
 
 When enabled, thin semi-transparent lines are drawn at every pixel boundary after compositing, making the individual simulated pixels clearly delineated.
 
+### Planned: CRT / Display Shader Effects
+
+A future enhancement direction is to add CRT-style visual effects (scanlines, RGB sub-pixel rendering, bloom) to the simulated screen. The initial approach would use Canvas 2D drawing inside `renderScreenToMain` in `screen.js` — scanlines as semi-transparent horizontal lines, sub-pixels as tinted vertical sub-rects per pixel. See FUTURES.md for full details and implementation options.
+
 ## HiDPI Rendering
 
 The canvas backing store is sized at `logicalWidth × dpr` by `logicalHeight × dpr` (where `dpr = devicePixelRatio`), while CSS dimensions remain at logical size. Each frame applies `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` so all drawing code uses logical coordinates. The transform is reset before blitting the offscreen buffer.
@@ -249,9 +254,11 @@ smoothStroke                        — Enable Catmull-Rom + subdivision renderi
 reportRate                          — Tablet report rate in Hz (1–60)
 showA, showB, showC                 — Label visibility
 showPointer, pointerStyle           — OS pointer visibility and style (mouse/crosshair)
+pointerSize                         — OS pointer scale factor (1, 2, 4, or 8; default 1)
 showCircleA/B/C                     — Dotted circle visibility
 showTrackA/B/C                      — Track visibility
 showBrushStroke                     — Brush stroke visibility
+aspectRatio                         — Canvas aspect ratio ('16:9', '16:10', '4:3', '1:1'; default '16:9')
 screenMode                          — Enable simulated screen layer
 screenResolution                    — Screen width in simulated pixels (80–320)
 screenRefreshRate                   — Screen refresh rate in Hz (10–144)
@@ -285,10 +292,10 @@ All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with 
 Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `shouldRefresh(screen, dtMs, hz)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
 
 ### `src/components/Canvas.svelte`
-The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
+The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change. Canvas has a constant height of 600px with width derived from the aspect ratio; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `frozen` is true, the entire render loop is skipped (true pause). When `paused` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
 
 ### `src/lib/presets.js`
-Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-presets`. Format: `[{ name, data }]` where `data` contains all 30 settings values. Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
+Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-presets`. Format: `[{ name, data }]` where `data` contains all settings values (including `pointerSize` and `aspectRatio`). Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
 
 ### `src/components/Presets.svelte`
 Preset management UI component. Provides a save input field, a scrollable preset list (click to load, rename via pencil icon, delete via x button), and export/import buttons. Uses a `children` snippet prop to render inside SidePanel. Calls into `presets.js` for all storage operations.
@@ -297,7 +304,7 @@ Preset management UI component. Provides a save input field, a scrollable preset
 Title bar and playback control buttons: Play/Pause (frozen), Stop Pen/Resume Pen (paused), Restart, and Reset All. Buttons use fixed min-width to prevent layout shift when labels change.
 
 ### `src/components/SidePanel.svelte`
-Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). Sections: GESTURE (pen speed, path type, label/track/circle for a), TABLET (pointer latency/smoothing, report rate, pointer visibility/label/track/circle for b, pointer style), BRUSH (brush latency/smoothing, size/spacing/trail, label/track/circle for c, stroke/smooth toggles), DISPLAY (screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark track (#4a4a4a), slate gray thumb/accent (#7089a8).
+Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). Sections: GESTURE (pen speed, path type, label/track/circle for a), TABLET (latency, smoothing, report rate), OS (pointer visibility/label/track/circle for b, pointer style, pointer size), BRUSH (brush latency/smoothing, size/spacing/trail, label/track/circle for c, stroke/smooth toggles), DISPLAY (aspect ratio, screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark checkboxes (#4a4a4a unchecked, #7089a8 checked), dark slider track (#4a4a4a) with slate gray thumb (#7089a8), dark dropdowns (#4a4a4a background, #ccc text), thin custom scrollbar (6px, #555) with 12px right padding for clearance.
 
 ### `src/components/CollapsibleSection.svelte`
 Reusable collapsible section wrapper with a clickable header showing a ▼/▶ indicator and a title. Content is shown/hidden based on collapsed state.
@@ -306,7 +313,7 @@ Reusable collapsible section wrapper with a clickable header showing a ▼/▶ i
 Reusable slider: label and value on the same row (label left-aligned, value right-aligned), range track underneath. Custom dark-themed styling. Bindable `value` prop.
 
 ### `src/App.svelte`
-Root component. Declares all `$state()` runes. Composes `TopPanel`, `SidePanel`, `Canvas`, and `Presets` with `bind:` directives. Provides `getCurrentSettings()` to snapshot all state values into a plain object, and `loadPreset(data)` to restore state from a saved preset object. `Presets` is mounted as a child of `SidePanel` via the children snippet prop.
+Root component. Declares all `$state()` runes (including `pointerSize` and `aspectRatio`). Composes `TopPanel`, `SidePanel`, `Canvas`, and `Presets` with `bind:` directives. Provides `getCurrentSettings()` to snapshot all state values into a plain object, and `loadPreset(data)` to restore state from a saved preset object. Both `pointerSize` and `aspectRatio` are included in presets/save/load/reset. `Presets` is mounted as a child of `SidePanel` via the children snippet prop.
 
 ## Data Flow
 

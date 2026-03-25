@@ -31,6 +31,47 @@ Ideas for fixes, improvements, and new directions.
 - **Motion blur visualization**: Show how sample-and-hold displays create perceived motion blur proportional to 1/refresh_rate.
 - **Variable refresh rate (VRR)**: Simulate adaptive sync / G-Sync / FreeSync where refresh rate matches the content update rate.
 
+## CRT / Display Shader Effects
+
+CRT shaders simulate the visual characteristics of real physical displays — scanlines, phosphor sub-pixels, bloom, and other artifacts that make a rendered image look like it is being viewed on an actual monitor. Adding even basic CRT effects to the simulated screen would dramatically increase the "this is a real display" feel.
+
+### Relevant Effects
+
+- **Scanlines**: Alternating dark horizontal lines between pixel rows, simulating the gap between electron beam passes on a CRT or the black matrix on an LCD. Visually, every other horizontal line is dimmed.
+- **RGB phosphor / sub-pixels**: Each simulated pixel is drawn as three narrow vertical strips — red, green, and blue — modeling real LCD sub-pixel structure or CRT phosphor triads. The per-channel color is derived from the pixel's actual RGB value.
+- **Bloom / halation**: Bright pixels bleed light into neighboring dark areas, simulating phosphor glow or lens diffusion. Creates a soft halo around high-contrast edges.
+- **Curvature (barrel distortion)**: Warps the image outward to mimic a curved CRT face. Probably not useful for this app since we are simulating flat panels, but worth noting.
+- **Vignette**: Edges of the screen are darker than the center, simulating light falloff in CRT electron guns or lens optics.
+
+### Implementation Options
+
+**Option A: Canvas 2D (recommended first step)**
+
+Draw scanlines as semi-transparent black horizontal lines across the composited screen image. Draw RGB sub-pixels by replacing each pixel rect with three tinted sub-rects (R, G, B), each one-third pixel width, with color intensity derived from the source pixel's channel values. At 160px resolution, the screen is ~160x100 = 16,000 pixels, times 3 sub-rects = ~48K `fillRect` calls — negligible performance cost. All rendering lives in `renderScreenToMain` in `screen.js`, applied after the response time buffer compositing and before the pixel grid overlay.
+
+**Option B: WebGL post-processing shader**
+
+Write a GLSL fragment shader that applies scanlines, sub-pixels, bloom, and vignette in a single GPU pass. Zero CPU cost for the effects themselves. However, this requires setting up a WebGL context alongside the existing Canvas 2D context (or replacing it), managing shader compilation, and passing the screen texture to the GPU. Significantly more complexity. Best reserved for bloom or other effects that require multi-pixel sampling.
+
+**Option C: CSS filters**
+
+Limited capability. Scanlines could be faked with a `repeating-linear-gradient` overlay, but RGB sub-pixels cannot be achieved with CSS alone. Not viable for the full effect set.
+
+### Recommendation
+
+Start with **Canvas 2D scanlines + RGB sub-pixels (Option A)**. This delivers roughly 90% of the visual impact with minimal code. Scanlines and sub-pixel rendering are the two effects that most strongly sell the "real screen" illusion. Add WebGL (Option B) later only if bloom, halation, or other exotic multi-pixel effects are needed.
+
+### New Controls Needed
+
+Two new checkboxes in the **DISPLAY** section of the side panel, conditional on screen mode being enabled:
+
+- **Scanlines** checkbox — toggles scanline overlay
+- **Sub-pixels** checkbox — toggles RGB sub-pixel rendering
+
+### Estimated Impact
+
+Approximately 30 lines of additional code in `screen.js` (inside `renderScreenToMain`), two new `$state` variables and two checkboxes in the UI, negligible performance cost, and a dramatically more screen-like appearance for the simulated display.
+
 ## Brush Engine Enhancements
 
 - ~~**Brush spacing (distance threshold)**: Simulate brush engines that only render when the cursor has moved a minimum distance.~~ Done — Brush Spacing slider (0–50px).
@@ -51,11 +92,11 @@ Ideas for fixes, improvements, and new directions.
 - ~~**Brush stroke width slider**: Control the maximum thickness of the tapered stroke.~~ Done — Brush Size slider (1–30).
 - ~~**Pause/play button**: Freeze the animation to inspect positions.~~ Done — Play/Pause button in TopPanel (true freeze, entire visualization stops). Stop Pen/Resume Pen button also available (only stops pen movement, b and c catch up naturally).
 - ~~**Reset button**: Clear history and restart the animation.~~ Done — Restart and Reset All buttons in TopPanel.
-- ~~**Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").~~ Done — Presets panel in the side panel with save, load, rename, delete, export, and import. All 30 settings stored in localStorage under `lag-viz-presets`.
+- ~~**Preset configurations**: Save/load named configurations (e.g., "iPad Pro", "Wacom Cintiq", "High Lag Example").~~ Done — Presets panel in the side panel with save, load, rename, delete, export, and import. All settings stored in localStorage under `lag-viz-presets`.
 - **Cloud sync presets**: Sync saved presets across devices via a cloud backend or service like Firebase.
 - **Shareable preset URLs**: Encode preset data into a URL so configurations can be shared as links without needing file export.
 - **Built-in factory presets**: Ship a set of default presets modeling real devices (e.g., "iPad Pro", "Wacom Cintiq 16", "Surface Pro") so new users can explore common configurations immediately.
-- ~~**Report rate slider**: Simulate how frequently the tablet sends position updates.~~ Done — Report Rate (Hz) slider, 1–60 Hz, grouped under the Pointer controls.
+- ~~**Report rate slider**: Simulate how frequently the tablet sends position updates.~~ Done — Report Rate (Hz) slider, 1–60 Hz, grouped in the TABLET section.
 
 ## Interactive Mode (removed, could return)
 
