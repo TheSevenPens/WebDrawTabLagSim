@@ -1,5 +1,9 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+input[type="checkbox"] {
+  accent-color: #7089a8;
+}
+
 body {
   background: #383838;
   color: #ccc;

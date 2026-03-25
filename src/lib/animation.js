@@ -12,10 +12,12 @@ function lissajousPosition(t, cx, cy, rx, ry) {
 }
 
 // --- Path type: Circle ---
+// Speed factor to match perceived speed with Lissajous (which uses frequencies 2 & 3)
+const CIRCLE_SPEED = 2.5;
 function circlePosition(t, cx, cy, rx, ry) {
   return {
-    x: cx + rx * Math.sin(t),
-    y: cy + ry * Math.cos(t),
+    x: cx + rx * Math.sin(t * CIRCLE_SPEED),
+    y: cy + ry * Math.cos(t * CIRCLE_SPEED),
   };
 }
 

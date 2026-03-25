@@ -35,10 +35,6 @@ export function createScreen(width, height) {
     colorBuffer[i * 4 + 3] = 0;
   }
 
-  // Temp canvas for IPS glow (cached to avoid re-allocation)
-  const glowCanvas = document.createElement('canvas');
-  const glowCtx = glowCanvas.getContext('2d');
-
   return {
     canvas,
     ctx,
@@ -46,8 +42,6 @@ export function createScreen(width, height) {
     width,
     height,
     refreshAccum: 0,
-    glowCanvas,
-    glowCtx,
   };
 }
 
@@ -117,17 +111,14 @@ export function commitFrame(screen, responseTimeMs, dtMs) {
 }
 
 /**
- * Composite the screen layer onto the main canvas, with optional grid and glow.
+ * Composite the screen layer onto the main canvas, with optional grid.
  */
-export function renderScreenToMain(mainCtx, screen, W, H, showGrid, showGlow) {
+export function renderScreenToMain(mainCtx, screen, W, H, showGrid) {
   mainCtx.save();
   mainCtx.imageSmoothingEnabled = false;
   mainCtx.drawImage(screen.canvas, 0, 0, W, H);
   mainCtx.restore();
 
-  if (showGlow) {
-    drawIpsGlow(mainCtx, screen, W, H);
-  }
   if (showGrid) {
     drawPixelGrid(mainCtx, screen.width, screen.height, W, H);
   }
@@ -162,33 +153,3 @@ export function drawPixelGrid(ctx, screenW, screenH, W, H) {
   ctx.restore();
 }
 
-/**
- * IPS glow: blurred copy of screen composited with lighter blend mode.
- */
-export function drawIpsGlow(mainCtx, screen, W, H) {
-  const { glowCanvas, glowCtx } = screen;
-
-  // Size glow canvas to logical dimensions (don't need full HiDPI here)
-  if (glowCanvas.width !== W || glowCanvas.height !== H) {
-    glowCanvas.width = W;
-    glowCanvas.height = H;
-  }
-
-  // Draw scaled-up screen image
-  glowCtx.imageSmoothingEnabled = false;
-  glowCtx.clearRect(0, 0, W, H);
-  glowCtx.drawImage(screen.canvas, 0, 0, W, H);
-
-  // Blur proportional to pixel size
-  const blurRadius = Math.max(2, (W / screen.width) * 1.5);
-  glowCtx.filter = `blur(${blurRadius}px)`;
-  glowCtx.drawImage(glowCanvas, 0, 0);
-  glowCtx.filter = 'none';
-
-  // Composite with lighter blend
-  mainCtx.save();
-  mainCtx.globalCompositeOperation = 'lighter';
-  mainCtx.globalAlpha = 0.12;
-  mainCtx.drawImage(glowCanvas, 0, 0);
-  mainCtx.restore();
-}

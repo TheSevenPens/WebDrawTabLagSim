@@ -37,18 +37,15 @@
     screenRefreshRate = $bindable(),
     screenResponseTime = $bindable(),
     showPixelGrid = $bindable(),
-    showIpsGlow = $bindable(),
     screenAntiAlias = $bindable(),
     // Actions
-    onRestart,
-    onResetAll,
     getCurrentSettings,
     onLoadPreset,
   } = $props();
 </script>
 
 <div class="side-panel">
-  <CollapsibleSection title="USER INPUT" open={false}>
+  <CollapsibleSection title="PEN" open={false}>
     <Slider label="Speed" min={0.5} max={10} step={0.5} bind:value={penSpeed} />
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -66,7 +63,7 @@
     </div>
   </CollapsibleSection>
 
-  <CollapsibleSection title="POINTER (a → b)" open={false}>
+  <CollapsibleSection title="POINTER" open={false}>
     <Slider label="Latency" min={0} max={80} bind:value={pointerLatency} />
     <Slider label="Smoothing" min={0} max={50} bind:value={pointerSmoothing} />
     <Slider label="Report Rate (Hz)" min={1} max={60} bind:value={reportRate} />
@@ -90,20 +87,17 @@
     {/if}
   </CollapsibleSection>
 
-  <CollapsibleSection title="BRUSH (b → c)" open={false}>
+  <CollapsibleSection title="BRUSH" open={false}>
     <Slider label="Latency" min={0} max={80} bind:value={brushLatency} />
     <Slider label="Smoothing" min={0} max={50} bind:value={brushSmoothing} />
+    <Slider label="Size" min={1} max={30} step={1} bind:value={brushSize} />
+    <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
+    <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
     <div class="checkbox-row">
       <label><input type="checkbox" bind:checked={showC}> Label</label>
       <label><input type="checkbox" bind:checked={showTrackC}> Track</label>
       <label><input type="checkbox" bind:checked={showCircleC}> Circle</label>
     </div>
-  </CollapsibleSection>
-
-  <CollapsibleSection title="BRUSH ENGINE" open={false}>
-    <Slider label="Size" min={0.1} max={3} step={0.1} bind:value={brushSize} />
-    <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
-    <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
     <div class="checkbox-row">
       <label><input type="checkbox" bind:checked={showBrushStroke}> Stroke</label>
       <label><input type="checkbox" bind:checked={smoothStroke}> Smooth</label>
@@ -118,7 +112,6 @@
       <Slider label="Response Time (ms)" min={1} max={200} bind:value={screenResponseTime} />
       <div class="checkbox-row">
         <label><input type="checkbox" bind:checked={showPixelGrid}> Grid</label>
-        <label><input type="checkbox" bind:checked={showIpsGlow}> Glow</label>
         <label><input type="checkbox" bind:checked={screenAntiAlias}> AA</label>
       </div>
     {/if}
@@ -128,10 +121,6 @@
     <Presets {getCurrentSettings} {onLoadPreset} />
   </CollapsibleSection>
 
-  <div class="buttons">
-    <button onclick={onRestart}>Restart</button>
-    <button onclick={onResetAll}>Reset All</button>
-  </div>
 </div>
 
 <style>
@@ -139,8 +128,8 @@
     display: flex;
     flex-direction: column;
     padding: 4px 0;
-    min-width: 230px;
-    max-width: 260px;
+    min-width: 280px;
+    max-width: 320px;
     max-height: calc(100vh - 80px);
     overflow-y: auto;
   }
@@ -150,6 +139,9 @@
     flex-wrap: wrap;
   }
   .checkbox-row label, .checkbox-single {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
@@ -168,25 +160,14 @@
   .select-row select {
     font-size: 0.78rem;
     font-family: inherit;
-    padding: 2px 4px;
-  }
-  .buttons {
-    display: flex;
-    gap: 8px;
-    padding: 10px 0;
-  }
-  .buttons button {
-    font-size: 0.78rem;
-    font-family: inherit;
-    font-weight: 600;
-    padding: 4px 10px;
-    border: 1px solid #666;
+    padding: 4px 6px;
+    background: #4a4a4a;
+    color: #ccc;
+    border: 1px solid #5a5a5a;
     border-radius: 4px;
-    background: #444;
-    color: #ddd;
-    cursor: pointer;
   }
-  .buttons button:hover {
-    background: #555;
+  .select-row select option {
+    background: #4a4a4a;
+    color: #ccc;
   }
 </style>

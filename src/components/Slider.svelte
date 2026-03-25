@@ -15,7 +15,7 @@
   .slider-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
     width: 100%;
   }
   .label-row {
@@ -33,6 +33,34 @@
   }
   input[type="range"] {
     width: 100%;
-    accent-color: #e07040;
+    accent-color: #7089a8;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: #4a4a4a;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #7089a8;
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #4a4a4a;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #7089a8;
+    border: none;
+    cursor: pointer;
   }
 </style>

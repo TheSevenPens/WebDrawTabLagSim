@@ -44,7 +44,6 @@
     screenRefreshRate,
     screenResponseTime,
     showPixelGrid,
-    showIpsGlow,
     screenAntiAlias,
   } = $props();
 
@@ -255,7 +254,7 @@
         }
 
         // Composite screen layer onto main canvas (every frame — LCD hold behavior)
-        renderScreenToMain(ctx, screen, W, H, showPixelGrid, showIpsGlow);
+        renderScreenToMain(ctx, screen, W, H, showPixelGrid);
 
         // Draw ideal overlays on top (ground truth elements)
         drawPosition(ctx, posC, 'c', showCircleC, showC);
@@ -299,8 +298,10 @@
 
 <div class="canvas-container" bind:this={containerEl}>
   <canvas bind:this={canvasEl}></canvas>
-  <div class="overlay-buttons">
+  <div class="overlay-left">
     <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG">📷</button>
+  </div>
+  <div class="overlay-right">
     <button class="overlay-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
       {isFullscreen ? '✕' : '⛶'}
     </button>
@@ -326,17 +327,22 @@
   .canvas-container:fullscreen canvas {
     border-radius: 0;
   }
-  .overlay-buttons {
+  .overlay-left, .overlay-right {
     position: absolute;
     top: 8px;
-    right: 8px;
-    display: flex;
-    gap: 4px;
     opacity: 0;
     transition: opacity 0.2s;
   }
-  .canvas-container:hover .overlay-buttons,
-  .canvas-container:fullscreen .overlay-buttons {
+  .overlay-left {
+    left: 8px;
+  }
+  .overlay-right {
+    right: 8px;
+  }
+  .canvas-container:hover .overlay-left,
+  .canvas-container:hover .overlay-right,
+  .canvas-container:fullscreen .overlay-left,
+  .canvas-container:fullscreen .overlay-right {
     opacity: 1;
   }
   .overlay-btn {
