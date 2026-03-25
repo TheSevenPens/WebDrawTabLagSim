@@ -84,7 +84,7 @@
       logicalW = window.innerWidth;
       logicalH = window.innerHeight;
     } else {
-      const maxH = 430;
+      const maxH = 600;
       logicalH = maxH;
       logicalW = Math.min(Math.round(logicalH / getAspectHeight()), window.innerWidth - 40);
     }
