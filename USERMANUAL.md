@@ -39,7 +39,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every frame. At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
 
 **OS POINTER section**
-- **Pointer** — toggle visibility of the mouse cursor or crosshair drawn at point b.
+- **Show OS pointer** — toggle visibility of the mouse cursor or crosshair drawn at point b.
 - **Style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
 - **Size** — dropdown to scale the OS pointer: 1x, 2x, 4x, or 8x. Scales both the mouse cursor icon and the crosshair. Default is 1x.
 
@@ -49,7 +49,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Brush Size** (1–30) — size of the brush stroke. Default is 4.
 - **Brush Spacing** (0–50) — minimum pixel distance c must travel before a new stroke segment is rendered. At 0 (default), rendering is continuous. Higher values create a segmented stroke that reveals how real brush engines sample at intervals. Try values of 20–40 to see the effect clearly.
 - **Brush Trail** (5–300) — how many sample points the stroke retains. Reduce this if the stroke loops back into itself at high spacing values.
-- **Stroke** — toggle the painted trail behind point c.
+- **Show brush** — toggle the painted trail behind point c.
 - **Smooth** — enables Catmull-Rom spline rendering for a smoother brush mark.
 
 **VIEW section**

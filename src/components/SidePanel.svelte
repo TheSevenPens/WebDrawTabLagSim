@@ -61,7 +61,7 @@
   </CollapsibleSection>
 
   <CollapsibleSection title="OS POINTER" open={false}>
-    <label class="checkbox-single"><input type="checkbox" bind:checked={showPointer}> Pointer</label>
+    <label class="checkbox-single"><input type="checkbox" bind:checked={showPointer}> Show OS pointer</label>
     {#if showPointer}
       <div class="select-row">
         <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -91,7 +91,7 @@
     <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
     <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
     <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showBrushStroke}> Stroke</label>
+      <label><input type="checkbox" bind:checked={showBrushStroke}> Show brush</label>
       <label><input type="checkbox" bind:checked={smoothStroke}> Smooth</label>
     </div>
   </CollapsibleSection>
