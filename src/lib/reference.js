@@ -19,11 +19,39 @@
 
 import { createSimulation } from './simulation.js';
 import { periodTicks } from './animation.js';
+import { TICKS_PER_SECOND } from './constants.js';
 
-// Ticks to run before recording, as a minimum. EMA time constants top out at
-// ~50 ticks per stage (smoothing 50), so ~1500 ticks lets two cascaded
-// stages decay to well under a pixel.
+// Minimum ticks to run before recording
 const MIN_WARMUP_TICKS = 1500;
+
+// A first-order filter leaves e^-k of its initial offset after k time
+// constants; k = 10 is ~5e-5, well under a pixel on any canvas here.
+const CONVERGENCE_TIME_CONSTANTS = 10;
+
+// Upper bound so extreme settings can't make recomputing a track slow
+const MAX_WARMUP_TICKS = 250000;
+
+const finiteOr = (v, fallback) => (Number.isFinite(v) ? v : fallback);
+
+/**
+ * Ticks needed for both filter stages to settle.
+ *
+ * Pointer smoothing advances once per tablet *report*, so its time constant
+ * is (1 + smoothing) reports = (1 + smoothing) * TICKS_PER_SECOND / reportRate
+ * ticks, which is long at low report rates. Brush smoothing advances every
+ * tick. The two are cascaded, so summing their time constants is a safe bound.
+ * Latency delays are added on top.
+ */
+export function warmupTicks(params, steps) {
+  const reportRate = finiteOr(params.reportRate, TICKS_PER_SECOND);
+  const ticksPerReport = TICKS_PER_SECOND / (reportRate > 0 ? reportRate : TICKS_PER_SECOND);
+  const tauPointer = (1 + Math.max(0, finiteOr(params.pointerSmoothing, 0))) * ticksPerReport;
+  const tauBrush = 1 + Math.max(0, finiteOr(params.brushSmoothing, 0));
+  const delays = Math.max(0, finiteOr(params.pointerLatency, 0)) + Math.max(0, finiteOr(params.brushLatency, 0));
+
+  const settle = Math.ceil(CONVERGENCE_TIME_CONSTANTS * (tauPointer + tauBrush) + delays);
+  return Math.min(MAX_WARMUP_TICKS, Math.max(steps, MIN_WARMUP_TICKS, settle));
+}
 
 /**
  * @param {number} W - canvas width
@@ -38,7 +66,7 @@ export function computeReferenceTracks(W, H, params) {
   const p = { ...params, brushSpacing: 0, brushTrailLength: 1 };
   const sim = createSimulation();
 
-  const warmup = Math.max(steps, MIN_WARMUP_TICKS);
+  const warmup = warmupTicks(params, steps);
   for (let i = 0; i < warmup; i++) sim.step(W, H, p);
 
   const trackA = [];

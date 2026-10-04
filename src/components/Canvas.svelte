@@ -9,8 +9,8 @@
     drawPointer, drawCrosshair, drawPen,
   } from '$lib/drawing.js';
   import {
-    createScreen, resizeScreen, planScreenUpdate,
-    commitFrame, renderScreenToMain,
+    createScreen, resizeScreen, advanceScreen,
+    renderScreenToMain,
   } from '$lib/screen.js';
 
   let {
@@ -315,9 +315,35 @@
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
+    // Draw this tick's pointer and stroke into the screen layer (screen resolution)
+    function drawScreenLayer(sctx) {
+      sctx.save();
+      sctx.imageSmoothingEnabled = screenAntiAlias;
+      sctx.scale(screen.width / logicalW, screen.height / logicalH);
+
+      if (showBrushStroke) drawBrushStroke(sctx, sim.brushTrail, brushSize, smoothStroke);
+      if (showPointer) {
+        const { posB } = current;
+        if (pointerStyle === 'crosshair') drawCrosshair(sctx, posB.x, posB.y, pointerSize);
+        else drawPointer(sctx, posB.x, posB.y, pointerSize);
+      }
+
+      sctx.restore();
+    }
+
+    // Advance the screen layer by `simMs`; redraws only when refreshes are due or it is dirty
+    function updateScreenLayer(simMs) {
+      if (!screenMode || !screen) return;
+      const dirty = screenDirty;
+      screenDirty = false;
+      advanceScreen(screen, {
+        dirty, frozen, simMs,
+        refreshRateHz: screenRefreshRate,
+        responseTimeMs: screenResponseTime,
+      }, drawScreenLayer);
+    }
+
     function render(timestamp) {
-      // Screen-layer time advances with simulated time, not host frames
-      let simMs = 0;
       if (frozen) {
         // Time is stopped, but keep drawing so the canvas never goes blank
         // after a restart or resize. Reset the clock so resuming doesn't see
@@ -336,9 +362,13 @@
         };
         for (let i = 0; i < ticks; i++) {
           current = sim.step(logicalW, logicalH, params, { penMoving: !paused });
+          // The screen sees every tick's state, so ghosting does not depend on how
+          // ticks are grouped into host frames
+          updateScreenLayer(TICK_MS);
         }
-        simMs = ticks * TICK_MS;
       }
+      // New, resized or edited-while-frozen layers redraw even when no tick ran
+      updateScreenLayer(0);
 
       const dpr = window.devicePixelRatio || 1;
       const W = logicalW;
@@ -365,35 +395,6 @@
 
       if (screenMode && screen) {
         // === SCREEN MODE ===
-
-        // Redraw when simulated refreshes are due, or when the layer is dirty
-        // (new/resized, or edited while frozen). A plain freeze leaves it as is.
-        const plan = planScreenUpdate(screen, {
-          dirty: screenDirty, frozen, dtMs: simMs, refreshRateHz: screenRefreshRate,
-        });
-        screenDirty = false;
-
-        if (plan.redraw) {
-          // Clear screen canvas to transparent (so tracks show through)
-          screen.ctx.clearRect(0, 0, screen.width, screen.height);
-
-          // Draw screen-layer elements at screen resolution
-          // Scale transform maps logical coords -> screen pixel coords
-          screen.ctx.save();
-          screen.ctx.imageSmoothingEnabled = screenAntiAlias;
-          screen.ctx.scale(screen.width / W, screen.height / H);
-
-          if (showBrushStroke) drawBrushStroke(screen.ctx, sim.brushTrail, brushSize, smoothStroke);
-          if (showPointer) {
-            if (pointerStyle === 'crosshair') drawCrosshair(screen.ctx, posB.x, posB.y, pointerSize);
-            else drawPointer(screen.ctx, posB.x, posB.y, pointerSize);
-          }
-
-          screen.ctx.restore();
-
-          // Apply response time blending (ghosting); an infinite interval snaps to the target
-          commitFrame(screen, screenResponseTime, plan.blendMs);
-        }
 
         // Composite screen layer onto main canvas (every frame — LCD hold behavior)
         renderScreenToMain(ctx, screen, W, H, showPixelGrid);

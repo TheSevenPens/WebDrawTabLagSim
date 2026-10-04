@@ -210,7 +210,7 @@ Each animation frame, `Canvas.svelte` passes the host frame time to `clock.advan
 
 Because A follows a periodic path, the steady-state paths of B and C are also periodic and deterministic for any given parameter set. The app draws them as guide tracks by running an **isolated simulation instance**, the same engine and tick model as the live view (`reference.js`):
 
-1. Warm up for at least 1500 ticks (or one period), until the filters' transients decay.
+1. Warm up until the filters' transients decay. The length is derived from the settings (`warmupTicks()`): pointer smoothing advances once per tablet *report*, so its time constant is `(1 + smoothing) × 60 / reportRate` ticks (about 51 s at 1 Hz and smoothing 50), brush smoothing advances every tick, and latencies are added; ten time constants are run, with a floor of 1500 ticks (or one period) and a cap of 250,000. The worst case recomputes in about 15 ms.
 2. Record A, B and C each tick for one full period of the path.
 
 Because it is the same pipeline, report-rate holding, latency and smoothing all appear in the tracks exactly as they do live. (An earlier version applied the EMA on every sample instead of every report, which drew the wrong track at low report rates.) The tablet report phase relative to the path period is not controlled, so at low report rates the exact held points can differ slightly from what is live at a given moment; shape and extent match.
@@ -236,7 +236,7 @@ The screen layer is composited onto the main canvas with `imageSmoothingEnabled 
 
 ### Screen Refresh Rate
 
-The screen only updates at the configured refresh rate (10–144 Hz). Between refreshes, the screen holds its last frame (LCD "sample-and-hold" behavior). An accumulator of simulated time counts how many refreshes are due this frame (`consumeRefreshes()`); there can be several when the screen's refresh rate exceeds the host frame rate. `planScreenUpdate()` decides whether the layer redraws: it does when refreshes are due, or when the layer is dirty (new, reset or resized, or edited while frozen). A plain pause leaves the layer untouched, so ghosts are preserved.
+The screen only updates at the configured refresh rate (10–144 Hz). Between refreshes, the screen holds its last frame (LCD "sample-and-hold" behavior). The screen layer is advanced **once per simulation tick** (`advanceScreen()`, right after the tick, using that tick's state), not once per host frame. Response time therefore integrates the same sequence of states whatever the host frame rate is: a 30 fps host that runs two ticks per frame gives the same pixels as a 60 fps host. Compositing onto the main canvas still happens once per host frame. An accumulator of simulated time counts how many refreshes are due (`consumeRefreshes()`); there can be several when the screen's refresh rate exceeds 60 Hz. `planScreenUpdate()` decides whether the layer redraws: it does when refreshes are due, or when the layer is dirty (new, reset or resized, or edited while frozen). A plain pause leaves the layer untouched, so ghosts are preserved.
 
 ### Pixel Response Time (Ghosting)
 
@@ -323,7 +323,7 @@ All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with 
 - `drawBrushStroke(ctx, trail, brushSize, smoothStroke)` — Main stroke renderer with branching for smooth/straight modes
 
 ### `src/lib/screen.js`
-Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `consumeRefreshes(screen, dtMs, hz)`, `planScreenUpdate(screen, opts)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
+Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `consumeRefreshes(screen, dtMs, hz)`, `planScreenUpdate(screen, opts)`, `advanceScreen(screen, opts, draw)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
 
 ### `src/components/Canvas.svelte`
 The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and a `requestAnimationFrame` loop that feeds frame times to its own clock and simulation instance. Uses `$effect` to reactively recompute reference tracks when lag/speed/path/report-rate props change. Canvas has a constant height of 600px with width derived from the aspect ratio; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `frozen` is true the clock stops and the canvas keeps drawing the held state (true pause). When `paused` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.

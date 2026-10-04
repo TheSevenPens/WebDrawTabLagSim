@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeReferenceTracks } from '../src/lib/reference.js';
+import { computeReferenceTracks, warmupTicks } from '../src/lib/reference.js';
 import { createSimulation } from '../src/lib/simulation.js';
 import { periodTicks } from '../src/lib/animation.js';
 
@@ -83,4 +83,57 @@ test('computing reference tracks does not disturb a running simulation', () => {
   const before = JSON.stringify(sim.current);
   computeReferenceTracks(W, H, { ...base, pointerSmoothing: 25 });
   assert.equal(JSON.stringify(sim.current), before);
+});
+
+// --- warm-up must cover report rate and both filter stages ---
+
+/** Run a live engine far past convergence and record one period of B and C. */
+function convergedTracks(params, warmupTicks) {
+  const sim = createSimulation();
+  const steps = periodTicks(params.penSpeed, params.pathType);
+  for (let i = 0; i < warmupTicks; i++) sim.step(W, H, params);
+  const b = [];
+  const c = [];
+  for (let i = 0; i < steps; i++) {
+    const r = sim.step(W, H, params);
+    b.push(r.posB);
+    c.push(r.posC);
+  }
+  return { b, c };
+}
+
+const meanY = (track) => track.reduce((s, p) => s + p.y, 0) / track.length;
+const meanX = (track) => track.reduce((s, p) => s + p.x, 0) / track.length;
+
+test('warm-up grows with slower report rates and heavier smoothing', () => {
+  const steps = periodTicks(3, 'circle');
+  const fast = warmupTicks({ ...base, pointerSmoothing: 50, reportRate: 60 }, steps);
+  const slow = warmupTicks({ ...base, pointerSmoothing: 50, reportRate: 1 }, steps);
+  assert.ok(slow > fast * 10, `${slow} vs ${fast}`);
+  // Brush smoothing adds to the settle time once the filters dominate the minimum
+  const slowBase = { ...base, pointerSmoothing: 50, reportRate: 1 };
+  assert.ok(
+    warmupTicks({ ...slowBase, brushSmoothing: 50 }, steps) > warmupTicks({ ...slowBase, brushSmoothing: 0 }, steps),
+  );
+  // bounded for any input
+  for (const bad of [NaN, -1, Infinity]) {
+    const n = warmupTicks({ ...base, reportRate: bad, pointerSmoothing: bad, brushSmoothing: bad }, steps);
+    assert.ok(Number.isFinite(n) && n > 0 && n <= 250000);
+  }
+});
+
+test('1-2 Hz reports with maximum smoothing: pointer and brush references match a converged engine', () => {
+  for (const reportRate of [1, 2]) {
+    const params = {
+      ...base, pointerSmoothing: 50, brushSmoothing: 50, pointerLatency: 20, brushLatency: 20, reportRate,
+    };
+    const ref = computeReferenceTracks(W, H, params);
+    const live = convergedTracks(params, 250000);
+
+    // Same centre and same extent, to well under a pixel (the old warm-up was ~100 px off)
+    assert.ok(Math.abs(meanY(ref.trackB) - meanY(live.b)) < 1, `B y @${reportRate}Hz`);
+    assert.ok(Math.abs(meanX(ref.trackB) - meanX(live.b)) < 1, `B x @${reportRate}Hz`);
+    assert.ok(Math.abs(meanY(ref.trackC) - meanY(live.c)) < 1, `C y @${reportRate}Hz`);
+    assert.ok(Math.abs(meanX(ref.trackC) - meanX(live.c)) < 1, `C x @${reportRate}Hz`);
+  }
 });

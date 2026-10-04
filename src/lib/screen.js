@@ -101,6 +101,34 @@ export function planScreenUpdate(screen, { dirty, frozen, dtMs, refreshRateHz })
 }
 
 /**
+ * Advance the screen layer by `simMs` of simulated time: redraw it if the plan
+ * says so, then blend into the persistent pixel buffer.
+ *
+ * Call this once per simulation tick, right after the tick, with that tick's
+ * state. Response time then integrates the same sequence of states whatever
+ * the host frame rate is; grouping several ticks into one host frame (or
+ * running none) cannot change the result. Compositing onto the main canvas
+ * still happens once per host frame.
+ *
+ * @param {object} screen - from createScreen()
+ * @param {object} opts - { dirty, frozen, simMs, refreshRateHz, responseTimeMs }
+ * @param {(ctx: CanvasRenderingContext2D) => void} draw - draws this tick's pointer/stroke
+ * @returns {boolean} whether the layer was redrawn
+ */
+export function advanceScreen(screen, { dirty, frozen, simMs, refreshRateHz, responseTimeMs }, draw) {
+  const plan = planScreenUpdate(screen, { dirty, frozen, dtMs: simMs, refreshRateHz });
+  if (!plan.redraw) return false;
+
+  // Clear to transparent (so tracks show through), then draw at screen resolution
+  screen.ctx.clearRect(0, 0, screen.width, screen.height);
+  draw(screen.ctx);
+
+  // Response time blending (ghosting); an infinite interval snaps to the target
+  commitFrame(screen, responseTimeMs, plan.blendMs);
+  return true;
+}
+
+/**
  * Blend the current screen canvas frame into the persistent color buffer.
  * Models LCD pixel response time — slow response = ghosting.
  */
