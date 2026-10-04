@@ -23,6 +23,8 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
+      # Type check (svelte-check over src, see jsconfig.json)
+      - run: bun run check
       - run: bun run test
       # CI=true makes the build fail on Svelte compiler warnings (see vite.config.js)
       - run: bun run build
