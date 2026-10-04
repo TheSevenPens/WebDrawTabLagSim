@@ -145,7 +145,7 @@ export function drawCrosshair(ctx, x, y, scale = 1) {
  * Compute Catmull-Rom control points for a cubic bezier between p1 and p2,
  * given neighboring points p0 and p3. Tension = 0.5 (standard Catmull-Rom).
  */
-function catmullRomToBezier(p0, p1, p2, p3) {
+export function catmullRomToBezier(p0, p1, p2, p3) {
   const t = 0.5;
   return {
     cp1x: p1.x + (p2.x - p0.x) / (6 / t),
@@ -158,7 +158,7 @@ function catmullRomToBezier(p0, p1, p2, p3) {
 /**
  * Evaluate a cubic bezier at parameter s (0–1).
  */
-function evalBezier(p0x, p0y, cp1x, cp1y, cp2x, cp2y, p1x, p1y, s) {
+export function evalBezier(p0x, p0y, cp1x, cp1y, cp2x, cp2y, p1x, p1y, s) {
   const inv = 1 - s;
   const inv2 = inv * inv;
   const inv3 = inv2 * inv;
@@ -170,8 +170,23 @@ function evalBezier(p0x, p0y, cp1x, cp1y, cp2x, cp2y, p1x, p1y, s) {
   };
 }
 
-// Number of subdivisions per segment when smooth stroke is enabled
+// Most pieces one trail segment is split into when smooth stroke is enabled
 const SUBDIVISIONS = 16;
+
+// Aim for pieces about this long (in the units being drawn in). Each piece is a
+// separate stroke() call, and trail segments are usually only a few pixels, so
+// a fixed 16 pieces per segment drew thousands of sub-pixel strokes per frame.
+// A 3 px chord of a smooth curve deviates by well under a pixel from the curve;
+// long segments (large brush spacing) still get the full 16.
+const SUBDIVISION_TARGET_LENGTH = 3;
+
+/**
+ * How many pieces to split the curve between trail points p1 and p2 into.
+ */
+export function subdivisionsFor(p1, p2) {
+  const length = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  return Math.min(SUBDIVISIONS, Math.max(1, Math.ceil(length / SUBDIVISION_TARGET_LENGTH)));
+}
 
 export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false) {
   if (trail.length < 3) return;
@@ -196,9 +211,10 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
       const t1 = i / trail.length;
 
       let prevPt = { x: p1.x, y: p1.y };
+      const pieces = subdivisionsFor(p1, p2);
 
-      for (let sub = 1; sub <= SUBDIVISIONS; sub++) {
-        const s = sub / SUBDIVISIONS;
+      for (let sub = 1; sub <= pieces; sub++) {
+        const s = sub / pieces;
         const pt = evalBezier(p1.x, p1.y, cp1x, cp1y, cp2x, cp2y, p2.x, p2.y, s);
 
         // Interpolate t across the subdivision for smooth width/alpha
@@ -230,9 +246,10 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
       const t1 = i / trail.length;
 
       let prevPt = { x: p1.x, y: p1.y };
+      const pieces = subdivisionsFor(p1, p2);
 
-      for (let sub = 1; sub <= SUBDIVISIONS; sub++) {
-        const s = sub / SUBDIVISIONS;
+      for (let sub = 1; sub <= pieces; sub++) {
+        const s = sub / pieces;
         const pt = evalBezier(p1.x, p1.y, cp1x, cp1y, cp2x, cp2y, p2.x, p2.y, s);
 
         const t = t0 + (t1 - t0) * s;
