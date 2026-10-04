@@ -79,6 +79,7 @@ export const SETTINGS = {
   showLabels: { type: 'boolean', default: true },
   showTracks: { type: 'boolean', default: true },
   showCircles: { type: 'boolean', default: true },
+  showRates: { type: 'boolean', default: false },
 };
 
 export const SETTING_KEYS = Object.keys(SETTINGS);

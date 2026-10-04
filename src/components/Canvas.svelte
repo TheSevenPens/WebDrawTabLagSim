@@ -3,6 +3,7 @@
   import { COLORS, TICK_MS } from '$lib/constants.js';
   import { createSimulation } from '$lib/simulation.js';
   import { createClock } from '$lib/clock.js';
+  import { createRateMeter, formatRates } from '$lib/rate-meter.js';
   import { computeReferenceTracks } from '$lib/reference.js';
   import {
     drawBrushStroke, drawTrack, drawPosition,
@@ -23,6 +24,7 @@
     showLabels,
     showTracks,
     showCircles,
+    showRates,
     showPointer,
     pointerStyle,
     pointerSize,
@@ -53,6 +55,12 @@
   // This canvas's own simulation instance and tick clock
   const sim = createSimulation();
   const clock = createClock();
+  // Measured host frame rate and simulation tick rate, for the optional readout
+  const frameMeter = createRateMeter();
+  const tickMeter = createRateMeter();
+  const RATE_READOUT_INTERVAL_MS = 250;
+  let rateText = $state('');
+  let lastRateUpdate = -Infinity;
   let trackA = [];
   let trackB = [];
   let trackC = [];
@@ -407,6 +415,7 @@
     }
 
     function render(timestamp) {
+      let ticks = 0;
       if (simPaused) {
         // Time is stopped, but keep drawing so the canvas never goes blank
         // after a restart or resize. Reset the clock so resuming doesn't see
@@ -418,7 +427,7 @@
         lastFrameTime = timestamp;
 
         // Run the whole ticks that are due; a fast display may run none this frame
-        const ticks = clock.advance(hostDt);
+        ticks = clock.advance(hostDt);
         const params = {
           pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
           penSpeed, pathType, reportRate, brushSpacing, brushTrailLength,
@@ -432,6 +441,14 @@
       }
       // New, resized or edited-while-paused layers redraw even when no tick ran
       updateScreenLayer(0);
+
+      // Measure every frame (a few array operations), but only touch the DOM a few times a second
+      frameMeter.record(timestamp, 1);
+      tickMeter.record(timestamp, ticks);
+      if (showRates && timestamp - lastRateUpdate >= RATE_READOUT_INTERVAL_MS) {
+        lastRateUpdate = timestamp;
+        rateText = formatRates(frameMeter.rate(), tickMeter.rate());
+      }
 
       const dpr = window.devicePixelRatio || 1;
       const W = logicalW;
@@ -515,6 +532,11 @@
     <canvas bind:this={canvasEl} aria-label="Pen lag simulation" aria-describedby={descId}>
       <p id={descId}>{description}</p>
     </canvas>
+    {#if showRates}
+      <!-- Plain text, deliberately not a live region: a screen reader user can read the current values on
+           demand, and nothing is announced every time the numbers update -->
+      <div class="rate-readout">{rateText || formatRates(null, null)}</div>
+    {/if}
     <div class="overlay-left">
       <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG" aria-label="Save snapshot as PNG">📷</button>
     </div>
@@ -562,6 +584,18 @@
   }
   .canvas-container:fullscreen canvas {
     border-radius: 0;
+  }
+  .rate-readout {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
   }
   .overlay-left, .overlay-right {
     position: absolute;

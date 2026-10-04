@@ -56,6 +56,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Labels** — toggle all letter labels (a, b, c) on or off at once.
 - **Tracks** — toggle all track lines (the thin colored path lines) on or off at once.
 - **Circles** — toggle all dotted circles around points a, b, and c on or off at once.
+- **Frame rate** — shows a small readout in the canvas's bottom-left corner, off by default: `60 fps · 60 ticks/s`. The first number is how fast your display is actually drawing frames (the host frame rate); the second is how fast the simulation is running, in ticks of 1/60 s. On a healthy 60, 120 or 144 Hz display the second number stays at 60 whatever the first one is. If it falls below 60 the computer cannot keep up and the simulation is running slower than real time; it reads 0 while the simulation is paused. A dash means there is not enough data yet. The readout is not part of saved snapshots and does not appear in the pop-out window. For screen readers it is plain text that can be read on demand and is not announced as it changes.
 
 **DISPLAY section**
 - **Aspect Ratio** — dropdown to set the canvas aspect ratio: 16:9 (default), 16:10, 4:3, or 1:1. The canvas is at most 600px tall, with width set by the ratio. In a narrower window it shrinks to fit, keeping the ratio, and on a narrow screen the controls move above the canvas. Changing aspect ratio (or resizing the canvas) restarts the simulation.
