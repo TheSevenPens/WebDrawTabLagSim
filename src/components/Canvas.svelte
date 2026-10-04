@@ -533,8 +533,9 @@
       <p id={descId}>{description}</p>
     </canvas>
     {#if showRates}
-      <!-- A continuously changing number would be noise for a screen reader; the checkbox is the accessible control -->
-      <div class="rate-readout" aria-hidden="true">{rateText || formatRates(null, null)}</div>
+      <!-- Plain text, deliberately not a live region: a screen reader user can read the current values on
+           demand, and nothing is announced every time the numbers update -->
+      <div class="rate-readout">{rateText || formatRates(null, null)}</div>
     {/if}
     <div class="overlay-left">
       <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG" aria-label="Save snapshot as PNG">📷</button>
