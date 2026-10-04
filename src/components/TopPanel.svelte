@@ -16,7 +16,8 @@
   .top-bar {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 8px 16px;
+    flex-wrap: wrap;
     margin-bottom: 12px;
     width: 100%;
   }
@@ -27,6 +28,7 @@
   }
   .top-buttons {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
   }
   .top-buttons button {

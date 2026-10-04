@@ -9,7 +9,7 @@
     drawPointer, drawCrosshair, drawPen,
   } from '$lib/drawing.js';
   import {
-    createScreen, resizeScreen, advanceScreen,
+    createScreen, resizeScreen, advanceScreen, opaqueContext,
     renderScreenToMain,
   } from '$lib/screen.js';
 
@@ -44,6 +44,7 @@
     frozen,
   } = $props();
 
+  let areaEl;
   let containerEl;
   let canvasEl;
   let displayCtx;
@@ -74,12 +75,49 @@
   let popupCanvas = null;
   let popupDisplayCtx = null;
 
+  // Text alternative for the canvas: what the three positions are, and the active settings
+  const uid = $props.id();
+  const descId = `${uid}-desc`;
+  const description = $derived.by(() => {
+    const ms = (ticks) => `${Math.round(ticks * TICK_MS)} ms`;
+    const parts = [
+      `An animation of a pen tip (a) moving along a ${pathType} path. `
+        + `The operating system pointer (b) follows the pen tip, and the brush stroke (c) follows the pointer.`,
+      `Pointer lag: the tablet reports ${reportRate} times per second, with ${pointerLatency} ticks (${ms(pointerLatency)}) `
+        + `of latency and smoothing ${pointerSmoothing}.`,
+      `Brush lag: ${brushLatency} ticks (${ms(brushLatency)}) of latency and smoothing ${brushSmoothing}.`,
+    ];
+    if (screenMode) {
+      parts.push(
+        `Screen simulation is on: ${screenResolution} pixels wide, refreshing ${screenRefreshRate} times per second `
+          + `with a ${screenResponseTime} ms pixel response time. `
+          + `The circles and labels mark the ideal positions; the blocky pointer and stroke show what the simulated screen displays, which can lag behind them.`,
+      );
+    }
+    if (frozen) parts.push('The simulation is paused.');
+    else if (paused) parts.push('The pen is stopped.');
+    return parts.join(' ');
+  });
+
   // Logical (CSS) dimensions — drawing code uses these
   let logicalW = 0;
   let logicalH = 0;
 
   // Screen simulation state
   let screen = null;
+
+  // Full-size canvas height. Narrower areas scale down, keeping the aspect ratio.
+  const MAX_INLINE_HEIGHT = 600;
+  const MIN_INLINE_WIDTH = 200;
+
+  // Size of the inline canvas for the space the layout gives it
+  function inlineSize() {
+    const ratio = getAspectHeight();
+    const available = Math.max(MIN_INLINE_WIDTH, areaEl ? areaEl.clientWidth : window.innerWidth - 40);
+    const fullWidth = Math.round(MAX_INLINE_HEIGHT / ratio);
+    if (available >= fullWidth) return { w: fullWidth, h: MAX_INLINE_HEIGHT };
+    return { w: available, h: Math.round(available * ratio) };
+  }
 
   function resize() {
     if (!canvasEl) return;
@@ -98,9 +136,7 @@
       logicalW = window.innerWidth;
       logicalH = window.innerHeight;
     } else {
-      const maxH = 600;
-      logicalH = maxH;
-      logicalW = Math.min(Math.round(logicalH / getAspectHeight()), window.innerWidth - 40);
+      ({ w: logicalW, h: logicalH } = inlineSize());
     }
 
     // Set CSS display size
@@ -304,10 +340,35 @@
       reinit();
     }
 
+    // Inline: follow the space the layout gives the canvas (sidebar, window width).
+    // Only reset when the resulting size actually changes.
+    const areaObserver = new ResizeObserver(() => {
+      if (isFullscreen || isPoppedOut) return;
+      const { w, h } = inlineSize();
+      if (w !== logicalW || h !== logicalH) reinitAfterResize();
+    });
+    areaObserver.observe(areaEl);
+
+    // Fullscreen follows the window itself
     const onResize = () => {
-      reinitAfterResize();
+      if (isFullscreen) reinitAfterResize();
     };
     window.addEventListener('resize', onResize);
+
+    // A pixel-ratio change (dragging to another monitor, browser zoom) can leave
+    // the CSS size untouched, so neither of the above fires. The backing store
+    // has to be rebuilt for the new ratio.
+    let dprQuery = null;
+    const onDprChange = () => {
+      reinitAfterResize();
+      watchDpr();
+    };
+    function watchDpr() {
+      dprQuery?.removeEventListener('change', onDprChange);
+      dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      dprQuery.addEventListener('change', onDprChange);
+    }
+    watchDpr();
 
     const onFullscreenChange = () => {
       isFullscreen = !!document.fullscreenElement;
@@ -316,9 +377,10 @@
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
     // Draw this tick's pointer and stroke into the screen layer (screen resolution)
-    function drawScreenLayer(sctx) {
+    function drawScreenLayer(target, { coverage = false } = {}) {
+      // The coverage pass draws the same geometry fully opaque (see aliasFrame in screen.js)
+      const sctx = coverage ? opaqueContext(target) : target;
       sctx.save();
-      sctx.imageSmoothingEnabled = screenAntiAlias;
       sctx.scale(screen.width / logicalW, screen.height / logicalH);
 
       if (showBrushStroke) drawBrushStroke(sctx, sim.brushTrail, brushSize, smoothStroke);
@@ -340,6 +402,7 @@
         dirty, frozen, simMs,
         refreshRateHz: screenRefreshRate,
         responseTimeMs: screenResponseTime,
+        antiAlias: screenAntiAlias,
       }, drawScreenLayer);
     }
 
@@ -437,6 +500,8 @@
 
     return () => {
       cancelAnimationFrame(animFrame);
+      areaObserver.disconnect();
+      dprQuery?.removeEventListener('change', onDprChange);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
       if (popupWindow && !popupWindow.closed) popupWindow.close();
@@ -444,22 +509,42 @@
   });
 </script>
 
-<div class="canvas-container" bind:this={containerEl}>
-  <canvas bind:this={canvasEl}></canvas>
-  <div class="overlay-left">
-    <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG">📷</button>
-  </div>
-  <div class="overlay-right">
-    <button class="overlay-btn" onclick={isPoppedOut ? popIn : popOut} title={isPoppedOut ? 'Pop back in' : 'Pop out to window'}>
-      {isPoppedOut ? '⤶' : '⤴'}
-    </button>
-    <button class="overlay-btn" onclick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-      {isFullscreen ? '⛶' : '⛶'}
-    </button>
+<div class="canvas-area" bind:this={areaEl}>
+  <div class="canvas-container" bind:this={containerEl}>
+    <!-- The fallback content inside <canvas> is its text alternative for assistive technology -->
+    <canvas bind:this={canvasEl} aria-label="Pen lag simulation" aria-describedby={descId}>
+      <p id={descId}>{description}</p>
+    </canvas>
+    <div class="overlay-left">
+      <button class="overlay-btn" onclick={saveSnapshot} title="Save snapshot as PNG" aria-label="Save snapshot as PNG">📷</button>
+    </div>
+    <div class="overlay-right">
+      <button
+        class="overlay-btn"
+        onclick={isPoppedOut ? popIn : popOut}
+        title={isPoppedOut ? 'Pop back in' : 'Pop out to window'}
+        aria-label={isPoppedOut ? 'Pop back in' : 'Pop out to window'}
+      >
+        {isPoppedOut ? '⤶' : '⤴'}
+      </button>
+      <button
+        class="overlay-btn"
+        onclick={toggleFullscreen}
+        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+      >
+        ⛶
+      </button>
+    </div>
   </div>
 </div>
 
 <style>
+  /* The area is whatever width the layout gives the canvas; the canvas fits inside it */
+  .canvas-area {
+    flex: 1 1 0;
+    min-width: 0;
+  }
   .canvas-container {
     position: relative;
     display: inline-block;
@@ -494,6 +579,8 @@
   }
   .canvas-container:hover .overlay-left,
   .canvas-container:hover .overlay-right,
+  .canvas-container:focus-within .overlay-left,
+  .canvas-container:focus-within .overlay-right,
   .canvas-container:fullscreen .overlay-left,
   .canvas-container:fullscreen .overlay-right {
     opacity: 1;

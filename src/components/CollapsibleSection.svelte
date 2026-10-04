@@ -3,27 +3,25 @@
   // `open` only seeds the initial state; later changes to the prop are not tracked
   // svelte-ignore state_referenced_locally
   let isOpen = $state(open);
+  const uid = $props.id();
+  const bodyId = `${uid}-body`;
 </script>
 
 <div class="section" class:collapsed={!isOpen}>
   <div class="section-header-row">
-    <button class="section-header" onclick={() => isOpen = !isOpen}>
-      <span class="arrow">{isOpen ? '▼' : '▶'}</span>
+    <button class="section-header" onclick={() => isOpen = !isOpen} aria-expanded={isOpen} aria-controls={bodyId}>
+      <span class="arrow" aria-hidden="true">{isOpen ? '▼' : '▶'}</span>
       <span class="title">{title}</span>
     </button>
     {#if headerExtra}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <span class="header-extra" onclick={(e) => e.stopPropagation()}>
+      <span class="header-extra">
         {@render headerExtra()}
       </span>
     {/if}
   </div>
-  {#if isOpen}
-    <div class="section-body">
-      {@render children()}
-    </div>
-  {/if}
+  <div class="section-body" id={bodyId} hidden={!isOpen}>
+    {@render children()}
+  </div>
 </div>
 
 <style>
@@ -62,6 +60,9 @@
     width: 12px;
     text-align: center;
     flex-shrink: 0;
+  }
+  .section-body[hidden] {
+    display: none;
   }
   .section-body {
     padding: 0 0 10px 18px;

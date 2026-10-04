@@ -124,6 +124,7 @@
     <input
       type="text"
       placeholder="Preset name"
+      aria-label="Preset name"
       maxlength={MAX_NAME_LENGTH}
       bind:value={saveName}
       onkeydown={(e) => e.key === 'Enter' && handleSave()}
@@ -139,17 +140,18 @@
             <input
               type="text"
               class="rename-input"
+              aria-label="New name for preset {preset.name}"
               maxlength={MAX_NAME_LENGTH}
               bind:value={editName}
               onkeydown={(e) => handleKeydown(e, preset.name)}
               onblur={() => commitRename(preset.name)}
             >
           {:else}
-            <button class="preset-name" onclick={() => handleLoad(preset)} title="Load preset">
+            <button class="preset-name" onclick={() => handleLoad(preset)} title="Load preset" aria-label="Load preset {preset.name}">
               {preset.name}
             </button>
-            <button class="icon-btn" onclick={() => startRename(i)} title="Rename">&#9998;</button>
-            <button class="icon-btn delete-btn" onclick={() => handleDelete(preset.name)} title="Delete">&times;</button>
+            <button class="icon-btn" onclick={() => startRename(i)} title="Rename" aria-label="Rename preset {preset.name}">&#9998;</button>
+            <button class="icon-btn delete-btn" onclick={() => handleDelete(preset.name)} title="Delete" aria-label="Delete preset {preset.name}">&times;</button>
           {/if}
         </div>
       {/each}
@@ -162,6 +164,7 @@
     <input
       type="file"
       accept=".json"
+      aria-label="Choose a presets file to import"
       bind:this={fileInput}
       onchange={onFileSelected}
       style="display:none"

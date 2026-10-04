@@ -45,17 +45,26 @@
 
 <TopPanel onRestart={restartAnimation} onResetAll={resetAll} bind:paused bind:frozen />
 
-<div class="main-row">
+<main class="main-row">
   <SidePanel bind:settings {getCurrentSettings} onLoadPreset={loadPreset} />
   {#key restartKey}
     <Canvas {...settings} {paused} {frozen} />
   {/key}
-</div>
+</main>
 
 <style>
   .main-row {
     display: flex;
     gap: 16px;
     align-items: flex-start;
+    width: 100%;
+  }
+
+  /* Narrow windows: controls above the canvas instead of beside it */
+  @media (max-width: 860px) {
+    .main-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
   }
 </style>

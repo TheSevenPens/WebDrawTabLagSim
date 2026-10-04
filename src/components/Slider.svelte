@@ -1,14 +1,14 @@
 <script>
   let { label, min = 0, max = 100, step = 1, value = $bindable() } = $props();
+  const id = $props.id();
 </script>
 
 <div class="slider-group">
   <div class="label-row">
-    <!-- svelte-ignore a11y_label_has_associated_control -->
-    <label>{label}</label>
-    <span class="value">{value}</span>
+    <label for={id}>{label}</label>
+    <output class="value" for={id}>{value}</output>
   </div>
-  <input type="range" {min} {max} {step} bind:value={value}>
+  <input {id} type="range" {min} {max} {step} bind:value={value}>
 </div>
 
 <style>
@@ -39,7 +39,6 @@
     height: 4px;
     border-radius: 2px;
     background: #4a4a4a;
-    outline: none;
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
