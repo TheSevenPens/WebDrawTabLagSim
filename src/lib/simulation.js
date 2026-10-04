@@ -111,6 +111,10 @@ export function pushHistory(pos) {
  * @param {number} maxTrailLength - Maximum number of points in the trail buffer
  */
 export function pushBrushTrail(pos, brushSpacing = 0, maxTrailLength = BRUSH_TRAIL_MAX) {
+  // Enforce capacity first so the bound holds even when spacing skips this point
+  const cap = Math.max(1, Math.floor(maxTrailLength) || 1);
+  if (brushTrail.length > cap) brushTrail.splice(0, brushTrail.length - cap);
+
   if (brushSpacing > 0 && brushTrail.length > 0) {
     const last = brushTrail[brushTrail.length - 1];
     const dx = pos.x - last.x;
@@ -120,7 +124,7 @@ export function pushBrushTrail(pos, brushSpacing = 0, maxTrailLength = BRUSH_TRA
     }
   }
   brushTrail.push({ x: pos.x, y: pos.y });
-  while (brushTrail.length > maxTrailLength) brushTrail.shift();
+  if (brushTrail.length > cap) brushTrail.shift();
 }
 
 /**
@@ -165,16 +169,18 @@ export function computeCurrentPositions(W, H, params) {
  *
  * @param {number} W - canvas width
  * @param {number} H - canvas height
- * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate }
+ * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate, brushSpacing, brushTrailLength }
+ * @returns {{ t: number, posA: object, posB: object, posC: object }} final time and positions
  */
 export function preWarm(W, H, params) {
   let t = 0;
+  let posA, posB, posC;
   for (let i = 0; i < HISTORY_SIZE; i++) {
     t += params.penSpeed * TIME_STEP_SCALE;
-    const posA = autoPosition(t, W, H, params.pathType || 'lissajous');
+    posA = autoPosition(t, W, H, params.pathType || 'lissajous');
     pushHistory(posA);
-    const { posC } = computeCurrentPositions(W, H, params);
-    pushBrushTrail(posC);
+    ({ posB, posC } = computeCurrentPositions(W, H, params));
+    pushBrushTrail(posC, params.brushSpacing, params.brushTrailLength);
   }
-  return t;
+  return { t, posA, posB, posC };
 }

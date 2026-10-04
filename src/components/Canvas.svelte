@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { COLORS, TIME_STEP_SCALE } from '$lib/constants.js';
   import { autoPosition, computeTrackA, computeSmoothedTrack } from '$lib/animation.js';
   import {
@@ -11,7 +11,7 @@
     drawPointer, drawCrosshair, drawPen,
   } from '$lib/drawing.js';
   import {
-    createScreen, resizeScreen, shouldRefresh,
+    createScreen, resizeScreen, consumeRefreshes,
     commitFrame, renderScreenToMain,
   } from '$lib/screen.js';
 
@@ -58,6 +58,10 @@
   let animFrame;
   let mounted = false;
   let lastFrameTime = null;
+  // Most recent logical positions, kept so a frame can be drawn while frozen
+  let current = null;
+  // Set when the screen layer needs an immediate (non-blended) redraw
+  let screenDirty = true;
 
   function getAspectHeight() {
     const parts = aspectRatio.split(':');
@@ -144,20 +148,12 @@
 
     // Size to popup window
     resize();
-    resetSimulation();
-    time = preWarm(logicalW, logicalH, {
-      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-    });
-    recomputeTracks();
+    reinit();
 
     // Listen for popup resize
     popup.addEventListener('resize', () => {
       resize();
-      resetSimulation();
-      time = preWarm(logicalW, logicalH, {
-        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-      });
-      recomputeTracks();
+      reinit();
     });
 
     // When popup closes, pop back in
@@ -184,11 +180,7 @@
 
     // Re-init for inline dimensions
     resize();
-    resetSimulation();
-    time = preWarm(logicalW, logicalH, {
-      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-    });
-    recomputeTracks();
+    reinit();
   }
 
   function saveSnapshot() {
@@ -220,6 +212,37 @@
     trackC = computeSmoothedTrack(trackB, brushLatency, brushSmoothing);
   }
 
+  // Reset the simulation to a freshly warmed-up state for the current size.
+  // Reads many reactive props, so effects must call it inside untrack().
+  function reinit() {
+    resetSimulation();
+    const warm = preWarm(logicalW, logicalH, {
+      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
+      penSpeed, pathType, reportRate, brushSpacing, brushTrailLength,
+    });
+    time = warm.t;
+    current = { posA: warm.posA, posB: warm.posB, posC: warm.posC };
+    lastFrameTime = null;
+    screenDirty = true;
+    recomputeTracks();
+  }
+
+  // Create, resize or discard the screen layer to match current settings.
+  function syncScreen() {
+    if (screenMode) {
+      const sw = screenResolution;
+      const sh = Math.round(sw * getAspectHeight());
+      if (!screen) {
+        screen = createScreen(sw, sh);
+      } else if (screen.width !== sw || screen.height !== sh) {
+        resizeScreen(screen, sw, sh);
+      }
+      screenDirty = true;
+    } else {
+      screen = null;
+    }
+  }
+
   // Recompute tracks reactively when params change
   $effect(() => {
     const _pl = pointerLatency;
@@ -229,20 +252,19 @@
     const _sp = penSpeed;
     const _pt = pathType;
     if (mounted) {
-      recomputeTracks();
+      untrack(recomputeTracks);
     }
   });
 
-  // Reinit when aspect ratio changes
+  // Reinit when aspect ratio changes (and only then)
   $effect(() => {
     const _ar = aspectRatio;
     if (mounted) {
-      resize();
-      resetSimulation();
-      time = preWarm(logicalW, logicalH, {
-        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
+      untrack(() => {
+        resize();
+        reinit();
+        syncScreen();
       });
-      recomputeTracks();
     }
   });
 
@@ -251,43 +273,24 @@
     const _sm = screenMode;
     const _sr = screenResolution;
     if (!mounted) return;
-
-    if (screenMode) {
-      const sw = screenResolution;
-      const sh = Math.round(sw * getAspectHeight());
-      if (!screen) {
-        screen = createScreen(sw, sh);
-      } else if (screen.width !== sw || screen.height !== sh) {
-        resizeScreen(screen, sw, sh);
-      }
-    } else {
-      screen = null;
-    }
+    untrack(syncScreen);
   });
 
   onMount(() => {
-    resetSimulation();
-
     displayCtx = canvasEl.getContext('2d');
     offscreen = document.createElement('canvas');
     ctx = offscreen.getContext('2d');
 
     resize();
-
-    time = preWarm(logicalW, logicalH, {
-      pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-    });
-    recomputeTracks();
+    reinit();
+    // The screen effect skips its first run (mounted is false), so build it here
+    syncScreen();
 
     mounted = true;
 
     function reinitAfterResize() {
       resize();
-      resetSimulation();
-      time = preWarm(logicalW, logicalH, {
-        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate,
-      });
-      recomputeTracks();
+      reinit();
     }
 
     const onResize = () => {
@@ -302,27 +305,32 @@
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
     function render(timestamp) {
+      let dt = 0;
       if (frozen) {
-        animFrame = requestAnimationFrame(render);
-        return;
+        // Time is stopped, but keep drawing so the canvas never goes blank
+        // after a restart or resize. Reset the baseline so resuming doesn't
+        // see one huge frame gap.
+        lastFrameTime = null;
+      } else {
+        // Real dt for screen refresh timing
+        dt = lastFrameTime ? (timestamp - lastFrameTime) : 16.67;
+        lastFrameTime = timestamp;
+
+        if (!paused) time += penSpeed * TIME_STEP_SCALE;
+        const A = autoPosition(time, logicalW, logicalH, pathType);
+        pushHistory(A);
+
+        const { posB: B, posC: C } = computeCurrentPositions(logicalW, logicalH, {
+          pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate,
+        });
+        pushBrushTrail(C, brushSpacing, brushTrailLength);
+        current = { posA: A, posB: B, posC: C };
       }
 
-      // Compute real dt for screen refresh timing
-      const dt = lastFrameTime ? (timestamp - lastFrameTime) : 16.67;
-      lastFrameTime = timestamp;
-
-      if (!paused) time += penSpeed * TIME_STEP_SCALE;
       const dpr = window.devicePixelRatio || 1;
       const W = logicalW;
       const H = logicalH;
-
-      const posA = autoPosition(time, W, H, pathType);
-      pushHistory(posA);
-
-      const { posB, posC } = computeCurrentPositions(W, H, {
-        pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate,
-      });
-      pushBrushTrail(posC, brushSpacing, brushTrailLength);
+      const { posA, posB, posC } = current;
 
       // Scale to native resolution — all drawing uses logical coords
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -345,10 +353,14 @@
       if (screenMode && screen) {
         // === SCREEN MODE ===
 
-        // Check if the simulated screen should refresh
-        const doRefresh = shouldRefresh(screen, dt, screenRefreshRate);
+        // How many simulated screen refreshes elapsed this frame (can exceed 1
+        // when the screen's refresh rate is above the host frame rate)
+        let refreshes = frozen ? 0 : consumeRefreshes(screen, dt, screenRefreshRate);
+        // While frozen nothing evolves, so redraw the held state every frame
+        const forced = screenDirty || frozen;
+        screenDirty = false;
 
-        if (doRefresh) {
+        if (forced || refreshes > 0) {
           // Clear screen canvas to transparent (so tracks show through)
           screen.ctx.clearRect(0, 0, screen.width, screen.height);
 
@@ -367,7 +379,9 @@
           screen.ctx.restore();
 
           // Apply response time blending (ghosting)
-          commitFrame(screen, screenResponseTime, 1000 / screenRefreshRate);
+          // A forced redraw (new/resized screen) snaps to the target instead of fading in
+          commitFrame(screen, screenResponseTime,
+            forced ? Infinity : refreshes * 1000 / screenRefreshRate);
         }
 
         // Composite screen layer onto main canvas (every frame — LCD hold behavior)

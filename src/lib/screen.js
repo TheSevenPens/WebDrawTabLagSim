@@ -12,6 +12,9 @@ function parseHexColor(hex) {
 
 const BG = parseHexColor(COLORS.background);
 
+// Longest frame gap (ms) the refresh clock will catch up on
+const MAX_REFRESH_DT_MS = 250;
+
 /**
  * Create a simulated screen state object.
  * @param {number} width - Screen width in simulated pixels
@@ -66,19 +69,19 @@ export function resizeScreen(screen, width, height) {
 }
 
 /**
- * Check if it's time for a screen refresh based on elapsed time.
- * @returns {boolean} True if the screen should refresh this frame
+ * Count how many simulated screen refreshes elapsed during this frame.
+ * Several can be due when the simulated refresh rate exceeds the host frame
+ * rate; the caller redraws once and blends for `count * interval` ms, which is
+ * equivalent to blending `count` times toward the same target.
+ * @returns {number} Number of refreshes due (0 if none)
  */
-export function shouldRefresh(screen, dtMs, refreshRateHz) {
-  screen.refreshAccum += dtMs;
+export function consumeRefreshes(screen, dtMs, refreshRateHz) {
+  // Cap dt so a backgrounded tab doesn't produce a huge catch-up
+  screen.refreshAccum += Math.min(dtMs, MAX_REFRESH_DT_MS);
   const interval = 1000 / refreshRateHz;
-  if (screen.refreshAccum >= interval) {
-    screen.refreshAccum -= interval;
-    // Prevent accumulator runaway if tab was backgrounded
-    if (screen.refreshAccum > interval) screen.refreshAccum = 0;
-    return true;
-  }
-  return false;
+  const count = Math.floor(screen.refreshAccum / interval);
+  screen.refreshAccum -= count * interval;
+  return count;
 }
 
 /**
