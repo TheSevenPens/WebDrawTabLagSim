@@ -34,9 +34,9 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Path** — the shape the pen tip follows: Lissajous (pretzel-like curve), Circle, or Star (pentagram). Changing path type auto-restarts the animation.
 
 **TABLET section**
-- **Latency** (0–80) — pure time delay in animation frames. Higher values push b further behind a along the path.
+- **Latency** (0–80) — pure time delay in ticks of 1/60 s (16.7 ms), so it is the same on any display. Higher values push b further behind a along the path.
 - **Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
-- **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every frame. At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
+- **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every tick (1/60 s). At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
 
 **OS POINTER section** — checkbox in the header toggles visibility of the OS pointer and all its overlays (label, track, circle for point b).
 - **Style** — dropdown to choose between a mouse cursor icon or a crosshair. The crosshair's center is positioned exactly on point b.
@@ -59,7 +59,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Aspect Ratio** — dropdown to set the canvas aspect ratio: 16:9 (default), 16:10, 4:3, or 1:1. The canvas height stays constant at 600px; width adjusts to match the selected ratio. Changing aspect ratio restarts the simulation.
 - **Screen mode** — renders pointer and brush stroke onto a simulated pixelated display. When enabled, the following sub-options appear:
 - **Resolution (px)** (80–320) — width of the simulated screen in pixels. Height is derived from the canvas aspect ratio. Lower values create larger, more visible pixels. Try 80 for dramatic pixelation.
-- **Refresh Rate (Hz)** (10–144) — how often the simulated screen updates. At 60 Hz it updates every frame. At 10 Hz the pointer visibly jumps between positions, showing the "sample-and-hold" behavior of real LCDs.
+- **Refresh Rate (Hz)** (10–144) — how often the simulated screen updates. At 60 Hz it updates 60 times per second. At 10 Hz the pointer visibly jumps between positions, showing the "sample-and-hold" behavior of real LCDs.
 - **Response Time (ms)** (1–50) — how fast individual pixels transition from one color to another. At 1ms transitions are near-instant. At 50ms you see visible ghosting — a smeared trail behind the moving pointer and brush stroke, caused by pixels still transitioning from their previous color.
 - **Pixel grid** — shows grid lines between simulated pixels.
 

@@ -21,12 +21,15 @@ src/
 │   ├── Slider.svelte           — Reusable slider control (label left, value right, track underneath)
 │   └── Presets.svelte          — Preset management UI (save, load, rename, delete, export, import)
 └── lib/
-    ├── constants.js            — Colors, font, sizes, offsets, buffer limits
-    ├── simulation.js           — Lag pipeline: delay + EMA + report rate for B and C
-    ├── animation.js            — Path functions (Lissajous, Circle, Star), track pre-computation
+    ├── constants.js            — Colors, font, sizes, offsets, buffer limits, tick rate
+    ├── settings.js             — Every setting's default/range/options; validation (sanitizeSettings)
+    ├── clock.js                — Host frame times → whole simulation ticks
+    ├── simulation.js           — createSimulation(): instance-owned lag pipeline (delay + EMA + report rate)
+    ├── reference.js            — Reference tracks, computed by running an isolated simulation instance
+    ├── animation.js            — Path functions (Lissajous, Circle, Star)
     ├── drawing.js              — All canvas drawing primitives + brush stroke rendering
     ├── screen.js               — Simulated screen: pixelation, refresh rate, response time, grid
-    └── presets.js              — Pure localStorage CRUD for named preset configurations
+    └── presets.js              — Versioned, validated preset storage (injectable storage adapter)
 .github/workflows/deploy.yml   — GitHub Actions: build and deploy to Pages
 ARCHITECTURE.md                 — This file
 FUTURES.md                      — Ideas for improvements
@@ -59,14 +62,14 @@ Each stage in the pen-to-display pipeline has two parameters:
 
 | Parameter | Effect |
 |---|---|
-| **Latency** | Pure time delay in frames — B sees A's position from N frames ago |
+| **Latency** | Pure time delay in ticks (1 tick = 1/60 s of simulated time) — B sees A's position from N ticks ago |
 | **Smoothing** | EMA (exponential moving average) filter strength — rounds corners, shrinks the path |
 
 The EMA formula: `output = α × input + (1 − α) × prev_output` where `α = 1 / (1 + smoothing)`. When smoothing=0, α=1, so B follows A's exact path (just delayed). When smoothing>0, B traces a tighter, corner-cutting path.
 
 ### Report Rate
 
-In addition to latency and smoothing, point B is governed by a **report rate** that simulates the tablet's hardware update frequency. The animation runs at ~60fps, but B only updates its position on "report frames" determined by the report rate. Between reports, B holds its last position. This creates visible stepping/jumping at low report rates (e.g., 2-5 Hz), faithfully modeling how low-frequency tablets behave. The Report Rate slider is grouped in the TABLET section since it is a tablet hardware parameter.
+In addition to latency and smoothing, point B is governed by a **report rate** that simulates the tablet's hardware update frequency. The simulation runs at a fixed 60 ticks per second (see Timing Model), and B only updates its position on "report ticks" determined by the report rate. Report timing uses a fractional accumulator, so any rate is exact over time (45 Hz reports on 3 of every 4 ticks). Between reports, B holds its last position. This creates visible stepping/jumping at low report rates (e.g., 2-5 Hz), faithfully modeling how low-frequency tablets behave. The Report Rate slider is grouped in the TABLET section since it is a tablet hardware parameter.
 
 ### Pipeline
 
@@ -98,8 +101,8 @@ The brush stroke is one of the most visually complex parts of the app. It models
 
 Real brush engines don't render a stroke segment every single frame. Instead, they wait until the cursor has moved a minimum distance (the "spacing" or "step" distance) before placing the next dab or segment. This is controlled by the **Brush Spacing** slider:
 
-- **Spacing = 0**: Continuous mode — a new trail point is added every frame (the default).
-- **Spacing > 0**: The simulation checks the Euclidean distance from the last recorded trail point to C's current position. If `dx² + dy² < spacing²`, the frame is skipped. Only when C has traveled far enough is a new point appended to `brushTrail[]`.
+- **Spacing = 0**: Continuous mode — a new trail point is added every tick (the default).
+- **Spacing > 0**: The simulation checks the Euclidean distance from the last recorded trail point to C's current position. If `dx² + dy² < spacing²`, the tick is skipped. Only when C has traveled far enough is a new point appended to `brushTrail[]`.
 
 At high spacing values (20-50px), the trail becomes visibly segmented — the stroke is composed of widely-spaced sample points connected by straight lines, with abrupt width changes at each joint. This is faithful to how real brush engines look at high spacing.
 
@@ -185,15 +188,34 @@ The pen tip (A) can follow different deterministic paths, selectable via dropdow
 
 All paths share the same period (2π) and are centered on the canvas with configurable amplitude. Circle path speed is normalized (CIRCLE_SPEED = 2.5) to match Lissajous/Star perceived speed. Changing path type auto-restarts the animation.
 
-## Deterministic Tracks
+## Timing Model
 
-Because A follows a periodic path, the steady-state paths of B and C are also periodic and fully deterministic for any given parameter set. The app pre-computes these tracks:
+The simulation is decoupled from the display. It advances in fixed **ticks** of simulated time (60 per second, `TICKS_PER_SECOND`), and everything with a time unit is defined in that clock:
 
-1. **Track A**: Sample one full period at the runtime step rate.
-2. **Track B**: Run A's track through the delay + EMA pipeline for several warm-up periods, keep the last period.
-3. **Track C**: Run B's track through C's delay + EMA pipeline the same way.
+- **Latency** is in ticks (16.67 ms each).
+- **Report rate** is in Hz of simulated time.
+- **Pen speed** is a per-tick increment of path time.
+- **Screen refresh rate and response time** advance by the simulated time that elapsed, not by host frames.
 
-Tracks are recomputed reactively via `$effect` whenever latency, smoothing, pen speed, or path type change. Track B is normally only displayed when pointer smoothing > 0 (otherwise identical to Track A), and Track C when brush smoothing > 0. However, when a parent point is hidden (e.g., pen hidden), child tracks are shown regardless of smoothing so there is always a visible track for each shown point.
+Each animation frame, `Canvas.svelte` passes the host frame time to `clock.advance()`, which returns how many whole ticks are due, and steps the simulation that many times. A 120 or 144 Hz display usually runs zero or one tick per frame, a 30 Hz display runs two, and all of them produce the same simulated trajectory. Details and limits:
+
+- **Frame gaps are capped at 250 ms.** A backgrounded tab resumes instead of replaying the gap; the extra time is dropped.
+- **Tick snapping.** A tick runs when the accumulator is within 1 ms of a full tick, so a 60 Hz display with timestamp noise gets exactly one tick per frame instead of an occasional 0 then 2. The long-run tick count is still exact.
+- **Presentation limit.** The state only changes 60 times per second, so a faster display shows each state for more than one frame. It is not interpolated, and the host's real frame rate is a separate limit on what can be seen.
+- **Freezing.** `frozen` stops the clock and resets it on resume. `paused` (Stop Pen) holds the pen still but keeps ticking, so B and C converge onto it.
+
+`createSimulation()` returns an instance that owns all of its state (histories, filter state, report accumulator, brush trail, pen time). It knows nothing about the DOM, the clock or storage, so any number of instances run independently (the canvas has one; reference tracks use another).
+
+## Reference Tracks
+
+Because A follows a periodic path, the steady-state paths of B and C are also periodic and deterministic for any given parameter set. The app draws them as guide tracks by running an **isolated simulation instance**, the same engine and tick model as the live view (`reference.js`):
+
+1. Warm up for at least 1500 ticks (or one period), until the filters' transients decay.
+2. Record A, B and C each tick for one full period of the path.
+
+Because it is the same pipeline, report-rate holding, latency and smoothing all appear in the tracks exactly as they do live. (An earlier version applied the EMA on every sample instead of every report, which drew the wrong track at low report rates.) The tablet report phase relative to the path period is not controlled, so at low report rates the exact held points can differ slightly from what is live at a given moment; shape and extent match.
+
+Tracks are recomputed reactively via `$effect` whenever latency, smoothing, report rate, pen speed, or path type change. Track B is normally only displayed when pointer smoothing > 0 (otherwise identical to Track A), and Track C when brush smoothing > 0. However, when a parent point is hidden (e.g., pen hidden), child tracks are shown regardless of smoothing so there is always a visible track for each shown point.
 
 ## Screen Simulation
 
@@ -214,7 +236,7 @@ The screen layer is composited onto the main canvas with `imageSmoothingEnabled 
 
 ### Screen Refresh Rate
 
-The screen only updates at the configured refresh rate (10–144 Hz). Between refreshes, the screen holds its last frame (LCD "sample-and-hold" behavior). A time-based accumulator gates when `shouldRefresh()` returns true, following the same pattern as the tablet report rate.
+The screen only updates at the configured refresh rate (10–144 Hz). Between refreshes, the screen holds its last frame (LCD "sample-and-hold" behavior). An accumulator of simulated time counts how many refreshes are due this frame (`consumeRefreshes()`); there can be several when the screen's refresh rate exceeds the host frame rate. `planScreenUpdate()` decides whether the layer redraws: it does when refreshes are due, or when the layer is dirty (new, reset or resized, or edited while frozen). A plain pause leaves the layer untouched, so ghosts are preserved.
 
 ### Pixel Response Time (Ghosting)
 
@@ -279,10 +301,19 @@ State flows down via props. `SidePanel` uses `bind:` for two-way binding. `Canva
 Centralized config: `COLORS` (separate named colors for A/B/C), `FONT`, `LABEL_OFFSETS`, `CIRCLE_RADII`, `HISTORY_SIZE`, `BRUSH_TRAIL_MAX`, `TIME_STEP_SCALE`.
 
 ### `src/lib/simulation.js`
-Models the runtime lag pipeline. **Framework-agnostic** — accepts params explicitly, no Svelte imports. Maintains module-level mutable state (EMA accumulators, history buffers, report rate frame counter). Key exports: `pushHistory`, `pushBrushTrail(pos, brushSpacing, maxTrailLength)`, `computeCurrentPositions(W, H, params)`, `preWarm(W, H, params)`.
+Models the runtime lag pipeline as an **instance**: `createSimulation()` returns an object owning its histories, EMA state, report accumulator, brush trail and pen time. **Framework- and DOM-agnostic** — params are passed explicitly. Instance API: `step(W, H, params, { penMoving })` (one tick), `warmUp(W, H, params)`, `reset()`, `pushBrushTrail(pos, spacing, max)`, plus read-only `brushTrail`, `current`, `time`, `reportCount`.
+
+### `src/lib/clock.js`
+`createClock()` converts host frame times into whole simulation ticks (`advance(dtMs)`, `reset()`), with a frame-gap cap and tick snapping. See Timing Model.
+
+### `src/lib/reference.js`
+`computeReferenceTracks(W, H, params)` runs an isolated simulation instance and returns one period of tracks A, B and C. See Reference Tracks.
+
+### `src/lib/settings.js`
+`SETTINGS` defines every setting once (default, range and step, or options). `sanitizeSettings(raw)` turns untrusted data into a complete valid settings object, snapping numbers to the slider's step grid.
 
 ### `src/lib/animation.js`
-Path functions (`lissajousPosition`, `circlePosition`, `starPosition`) and the unified `autoPosition(t, W, H, pathType)` dispatcher. Track pre-computation: `computeTrackA(W, H, penSpeed, pathType)`, `computeSmoothedTrack(inputTrack, latency, smoothing)`.
+Path functions (`lissajousPosition`, `circlePosition`, `starPosition`) and the unified `autoPosition(t, W, H, pathType)` dispatcher. `periodTicks(penSpeed, pathType)` gives the number of ticks in one path period.
 
 ### `src/lib/drawing.js`
 All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with black outline), dashed circles, labels, tracks, and the brush stroke renderer with its Catmull-Rom + subdivision pipeline. Key internal functions:
@@ -292,10 +323,10 @@ All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with 
 - `drawBrushStroke(ctx, trail, brushSize, smoothStroke)` — Main stroke renderer with branching for smooth/straight modes
 
 ### `src/lib/screen.js`
-Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `shouldRefresh(screen, dtMs, hz)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
+Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `consumeRefreshes(screen, dtMs, hz)`, `planScreenUpdate(screen, opts)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
 
 ### `src/components/Canvas.svelte`
-The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and `requestAnimationFrame` loop. Uses `$effect` to reactively recompute tracks when lag/speed/path props change. Canvas has a constant height of 600px with width derived from the aspect ratio; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `frozen` is true, the entire render loop is skipped (true pause). When `paused` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
+The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and a `requestAnimationFrame` loop that feeds frame times to its own clock and simulation instance. Uses `$effect` to reactively recompute reference tracks when lag/speed/path/report-rate props change. Canvas has a constant height of 600px with width derived from the aspect ratio; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `frozen` is true the clock stops and the canvas keeps drawing the held state (true pause). When `paused` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
 
 ### `src/lib/presets.js`
 Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-presets`. Format: `[{ name, data }]` where `data` contains all settings values (including `pointerSize` and `aspectRatio`). Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
@@ -325,7 +356,7 @@ penSpeed → time increment → autoPosition(time, pathType) → posA
                                                               ↓
                                                         posHistory[]
                                                               ↓
-                                    reportRate → skip non-report frames
+                                    reportRate → fractional accumulator → skip non-report ticks
                                                               ↓
                            pointerLatency → getDelayedPos() → EMA(pointerSmoothing) → posB
                                                                                         ↓
@@ -359,6 +390,8 @@ App.svelte
 ├── Canvas.svelte
 │   ├── lib/constants.js
 │   ├── lib/simulation.js ─── lib/constants.js, lib/animation.js
+│   ├── lib/clock.js ──────── lib/constants.js
+│   ├── lib/reference.js ──── lib/simulation.js, lib/animation.js
 │   ├── lib/drawing.js ────── lib/constants.js
 │   ├── lib/animation.js ──── lib/constants.js
 │   └── lib/screen.js ─────── lib/constants.js
@@ -366,5 +399,5 @@ App.svelte
     ├── CollapsibleSection.svelte
     ├── Slider.svelte
     └── Presets.svelte (via children snippet)
-        └── lib/presets.js
+        └── lib/presets.js ── lib/settings.js
 ```

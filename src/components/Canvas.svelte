@@ -1,11 +1,9 @@
 <script>
   import { onMount, untrack } from 'svelte';
-  import { COLORS, TIME_STEP_SCALE } from '$lib/constants.js';
-  import { autoPosition, computeTrackA, computeSmoothedTrack } from '$lib/animation.js';
-  import {
-    brushTrail, pushHistory, pushBrushTrail,
-    computeCurrentPositions, preWarm, resetSimulation,
-  } from '$lib/simulation.js';
+  import { COLORS, TICK_MS } from '$lib/constants.js';
+  import { createSimulation } from '$lib/simulation.js';
+  import { createClock } from '$lib/clock.js';
+  import { computeReferenceTracks } from '$lib/reference.js';
   import {
     drawBrushStroke, drawTrack, drawPosition,
     drawPointer, drawCrosshair, drawPen,
@@ -51,7 +49,9 @@
   let displayCtx;
   let offscreen;
   let ctx;
-  let time = 0;
+  // This canvas's own simulation instance and tick clock
+  const sim = createSimulation();
+  const clock = createClock();
   let trackA = [];
   let trackB = [];
   let trackC = [];
@@ -206,23 +206,23 @@
     link.click();
   }
 
+  // Reference tracks come from an isolated run of the same engine as the live view
   function recomputeTracks() {
     if (!canvasEl) return;
-    trackA = computeTrackA(logicalW, logicalH, penSpeed, pathType);
-    trackB = computeSmoothedTrack(trackA, pointerLatency, pointerSmoothing);
-    trackC = computeSmoothedTrack(trackB, brushLatency, brushSmoothing);
+    ({ trackA, trackB, trackC } = computeReferenceTracks(logicalW, logicalH, {
+      penSpeed, pathType, pointerLatency, pointerSmoothing,
+      brushLatency, brushSmoothing, reportRate,
+    }));
   }
 
   // Reset the simulation to a freshly warmed-up state for the current size.
   // Reads many reactive props, so effects must call it inside untrack().
   function reinit() {
-    resetSimulation();
-    const warm = preWarm(logicalW, logicalH, {
+    current = sim.warmUp(logicalW, logicalH, {
       pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
       penSpeed, pathType, reportRate, brushSpacing, brushTrailLength,
     });
-    time = warm.t;
-    current = { posA: warm.posA, posB: warm.posB, posC: warm.posC };
+    clock.reset();
     lastFrameTime = null;
     screenDirty = true;
     recomputeTracks();
@@ -252,6 +252,7 @@
     const _bs = brushSmoothing;
     const _sp = penSpeed;
     const _pt = pathType;
+    const _rr = reportRate;
     if (mounted) {
       untrack(recomputeTracks);
     }
@@ -315,26 +316,28 @@
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
     function render(timestamp) {
-      let dt = 0;
+      // Screen-layer time advances with simulated time, not host frames
+      let simMs = 0;
       if (frozen) {
         // Time is stopped, but keep drawing so the canvas never goes blank
-        // after a restart or resize. Reset the baseline so resuming doesn't
-        // see one huge frame gap.
+        // after a restart or resize. Reset the clock so resuming doesn't see
+        // one huge frame gap.
         lastFrameTime = null;
+        clock.reset();
       } else {
-        // Real dt for screen refresh timing
-        dt = lastFrameTime ? (timestamp - lastFrameTime) : 16.67;
+        const hostDt = lastFrameTime === null ? TICK_MS : timestamp - lastFrameTime;
         lastFrameTime = timestamp;
 
-        if (!paused) time += penSpeed * TIME_STEP_SCALE;
-        const A = autoPosition(time, logicalW, logicalH, pathType);
-        pushHistory(A);
-
-        const { posB: B, posC: C } = computeCurrentPositions(logicalW, logicalH, {
-          pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate,
-        });
-        pushBrushTrail(C, brushSpacing, brushTrailLength);
-        current = { posA: A, posB: B, posC: C };
+        // Run the whole ticks that are due; a fast display may run none this frame
+        const ticks = clock.advance(hostDt);
+        const params = {
+          pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
+          penSpeed, pathType, reportRate, brushSpacing, brushTrailLength,
+        };
+        for (let i = 0; i < ticks; i++) {
+          current = sim.step(logicalW, logicalH, params, { penMoving: !paused });
+        }
+        simMs = ticks * TICK_MS;
       }
 
       const dpr = window.devicePixelRatio || 1;
@@ -366,7 +369,7 @@
         // Redraw when simulated refreshes are due, or when the layer is dirty
         // (new/resized, or edited while frozen). A plain freeze leaves it as is.
         const plan = planScreenUpdate(screen, {
-          dirty: screenDirty, frozen, dtMs: dt, refreshRateHz: screenRefreshRate,
+          dirty: screenDirty, frozen, dtMs: simMs, refreshRateHz: screenRefreshRate,
         });
         screenDirty = false;
 
@@ -380,7 +383,7 @@
           screen.ctx.imageSmoothingEnabled = screenAntiAlias;
           screen.ctx.scale(screen.width / W, screen.height / H);
 
-          if (showBrushStroke) drawBrushStroke(screen.ctx, brushTrail, brushSize, smoothStroke);
+          if (showBrushStroke) drawBrushStroke(screen.ctx, sim.brushTrail, brushSize, smoothStroke);
           if (showPointer) {
             if (pointerStyle === 'crosshair') drawCrosshair(screen.ctx, posB.x, posB.y, pointerSize);
             else drawPointer(screen.ctx, posB.x, posB.y, pointerSize);
@@ -405,7 +408,7 @@
         // === ORIGINAL PATH ===
 
         // Brush stroke trail
-        if (showBrushStroke) drawBrushStroke(ctx, brushTrail, brushSize, smoothStroke);
+        if (showBrushStroke) drawBrushStroke(ctx, sim.brushTrail, brushSize, smoothStroke);
 
         // Draw elements back to front
         if (showBrushStroke) drawPosition(ctx, posC, 'c', showCircles, showLabels);

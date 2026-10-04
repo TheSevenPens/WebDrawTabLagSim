@@ -4,52 +4,27 @@
  * Models the lag pipeline: A (pen tip) → B (OS pointer) → C (brush stroke).
  *
  * Each stage has two parameters:
- *   - latency: pure time delay in frames (B sees A's position from N frames ago)
+ *   - latency: pure time delay in ticks (B sees A's position from N ticks ago)
  *   - smoothing: EMA filter strength (0 = passthrough, higher = more smoothing)
  *
  * B also has a report rate: the tablet only sends position updates at a fixed
- * frequency. Between reports, B holds its last position. At ~60fps animation,
- * reportRate=60 means every frame, reportRate=10 means every 6th frame, etc.
+ * frequency. Between reports, B holds its last position. One tick is
+ * 1/TICKS_PER_SECOND s of simulated time, so reportRate=60 reports every tick
+ * and reportRate=45 reports on 3 of every 4 ticks. Report timing uses a
+ * fractional accumulator, so any rate is exact over time.
  *
  * The EMA formula:  output = alpha * input + (1 - alpha) * prev_output
  * where alpha = 1 / (1 + smoothing).   smoothing=0 → alpha=1 → no filtering.
  *
- * All functions accept lag parameters explicitly (no global state dependency).
+ * A simulation is an instance (createSimulation) that owns all of its state
+ * and knows nothing about the DOM, the host frame rate or storage. Callers
+ * decide when to step it; see clock.js. Two instances never affect each other.
  */
 
-import { HISTORY_SIZE, BRUSH_TRAIL_MAX, TIME_STEP_SCALE } from './constants.js';
-import { autoPosition } from './animation.js';
+import { HISTORY_SIZE, BRUSH_TRAIL_MAX, TIME_STEP_SCALE, TICKS_PER_SECOND } from './constants.js';
+import { autoPosition, safePenSpeed } from './animation.js';
 
-// --- Raw position history for A (pen tip) ---
-export const posHistory = [];
-export const brushTrail = [];
-
-/**
- * Reset all simulation state — call when restarting the animation.
- */
-export function resetSimulation() {
-  posHistory.length = 0;
-  brushTrail.length = 0;
-  emaB.x = null; emaB.y = null;
-  emaC.x = null; emaC.y = null;
-  posBHistory.length = 0;
-  frameCounter = 0;
-  lastReportedB = null;
-}
-
-// --- EMA filter state for B and C ---
-const emaB = { x: null, y: null };
-const emaC = { x: null, y: null };
-
-// --- B position history (needed so C can delay off B's output) ---
-const posBHistory = [];
-
-// --- Report rate state ---
-let frameCounter = 0;
-let lastReportedB = null;
-
-// Assumed animation frame rate (~60fps)
-const ASSUMED_FPS = 60;
+const REPORT_EPSILON = 1e-9;
 
 /**
  * Compute EMA alpha from the smoothing slider value.
@@ -61,8 +36,8 @@ function emaAlpha(smoothing) {
   return 1 / (1 + s);
 }
 
-/** Latency in whole frames, never negative. */
-function latencyFrames(latency) {
+/** Latency in whole ticks, never negative. */
+function latencyTicks(latency) {
   return Number.isFinite(latency) ? Math.max(0, Math.round(latency)) : 0;
 }
 
@@ -81,114 +56,136 @@ function emaStep(st, input, alpha) {
   return { x: st.x, y: st.y };
 }
 
-/**
- * Get a raw (unsmoothed) position from history, delayed by `latencyFrames`.
- */
-function getDelayedPos(frames, fallbackW, fallbackH) {
-  const idx = Math.max(0, posHistory.length - 1 - latencyFrames(frames));
-  return posHistory[idx] || { x: fallbackW / 2, y: fallbackH / 2 };
+function pushCapped(buffer, pos) {
+  buffer.push({ x: pos.x, y: pos.y });
+  if (buffer.length > HISTORY_SIZE) buffer.shift();
 }
 
-function pushBHistory(pos) {
-  posBHistory.push({ x: pos.x, y: pos.y });
-  if (posBHistory.length > HISTORY_SIZE) posBHistory.shift();
-}
-
-function getBDelayedPos(frames, W, H) {
-  const idx = Math.max(0, posBHistory.length - 1 - latencyFrames(frames));
-  return posBHistory[idx] || { x: W / 2, y: H / 2 };
+function delayed(buffer, ticks, fallback) {
+  const idx = Math.max(0, buffer.length - 1 - latencyTicks(ticks));
+  return buffer[idx] || fallback;
 }
 
 /**
- * Push a new A position into the history ring buffer.
- */
-export function pushHistory(pos) {
-  posHistory.push({ x: pos.x, y: pos.y });
-  if (posHistory.length > HISTORY_SIZE) posHistory.shift();
-}
-
-/**
- * Push a C position into the brush trail ring buffer.
- * When brushSpacing > 0, only adds a point if C has moved at least
- * that many pixels from the last recorded trail position.
- * brushSpacing = 0 means continuous (every frame).
+ * Create an independent simulation instance.
  *
- * @param {object} pos - { x, y }
- * @param {number} brushSpacing - Minimum pixel distance threshold (0 = continuous)
- * @param {number} maxTrailLength - Maximum number of points in the trail buffer
+ * @returns {{
+ *   brushTrail: object[], current: object|null, time: number, reportCount: number,
+ *   reset: Function, step: Function, warmUp: Function,
+ * }}
+ *   `brushTrail` and `current` ({ posA, posB, posC }) are live views of this
+ *   instance's state. Treat them as read-only.
  */
-export function pushBrushTrail(pos, brushSpacing = 0, maxTrailLength = BRUSH_TRAIL_MAX) {
-  // Enforce capacity first so the bound holds even when spacing skips this point
-  const cap = Math.max(1, Math.floor(maxTrailLength) || 1);
-  if (brushTrail.length > cap) brushTrail.splice(0, brushTrail.length - cap);
+export function createSimulation() {
+  const posHistory = [];
+  const posBHistory = [];
+  const brushTrail = [];
+  const emaB = { x: null, y: null };
+  const emaC = { x: null, y: null };
 
-  if (brushSpacing > 0 && brushTrail.length > 0) {
-    const last = brushTrail[brushTrail.length - 1];
-    const dx = pos.x - last.x;
-    const dy = pos.y - last.y;
-    if (dx * dx + dy * dy < brushSpacing * brushSpacing) {
-      return; // Haven't moved far enough — skip this frame
-    }
-  }
-  brushTrail.push({ x: pos.x, y: pos.y });
-  if (brushTrail.length > cap) brushTrail.shift();
-}
+  let time = 0;
+  let reportAccum = null;
+  let lastReportedB = null;
+  let reportCount = 0;
 
-/**
- * Compute B and C positions for the current frame.
- * Call once per frame after pushHistory(posA).
- *
- * @param {number} W - canvas width
- * @param {number} H - canvas height
- * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, reportRate }
- */
-export function computeCurrentPositions(W, H, params) {
-  const alphaB = emaAlpha(params.pointerSmoothing);
-  const alphaC = emaAlpha(params.brushSmoothing);
+  const sim = {
+    brushTrail,
+    current: null,
+    get time() { return time; },
+    get reportCount() { return reportCount; },
 
-  // Determine if this frame is a report frame
-  const reportRate = Number.isFinite(params.reportRate) && params.reportRate > 0
-    ? params.reportRate : ASSUMED_FPS;
-  const framesPerReport = Math.max(1, Math.round(ASSUMED_FPS / reportRate));
+    /** Clear all state. */
+    reset() {
+      posHistory.length = 0;
+      posBHistory.length = 0;
+      brushTrail.length = 0;
+      emaB.x = emaB.y = null;
+      emaC.x = emaC.y = null;
+      time = 0;
+      reportAccum = null;
+      lastReportedB = null;
+      reportCount = 0;
+      sim.current = null;
+    },
 
-  frameCounter++;
+    /**
+     * Advance one tick.
+     *
+     * @param {number} W - canvas width
+     * @param {number} H - canvas height
+     * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
+     *   penSpeed, pathType, reportRate, brushSpacing, brushTrailLength }
+     * @param {object} [opts]
+     * @param {boolean} [opts.penMoving=true] - false holds the pen still while the
+     *   filters keep running (so B and C converge onto A)
+     * @returns {{ posA: object, posB: object, posC: object }}
+     */
+    step(W, H, params, { penMoving = true } = {}) {
+      // --- A: pen tip ---
+      if (penMoving) time += safePenSpeed(params.penSpeed) * TIME_STEP_SCALE;
+      const posA = autoPosition(time, W, H, params.pathType || 'lissajous');
+      pushCapped(posHistory, posA);
 
-  let posB;
-  if (frameCounter % framesPerReport === 0 || lastReportedB === null) {
-    // Report frame: update B with delay + EMA
-    const delayedA = getDelayedPos(params.pointerLatency, W, H);
-    posB = emaStep(emaB, delayedA, alphaB);
-    lastReportedB = { x: posB.x, y: posB.y };
-  } else {
-    // Between reports: hold last position (don't run EMA)
-    posB = lastReportedB;
-  }
+      // --- B: report gate → latency → EMA ---
+      const reportRate = Number.isFinite(params.reportRate) && params.reportRate > 0
+        ? params.reportRate : TICKS_PER_SECOND;
+      const perTick = reportRate / TICKS_PER_SECOND;
+      // Start so the very first tick reports, then every 1/perTick ticks on average
+      if (reportAccum === null) reportAccum = 1 - perTick;
+      reportAccum += perTick;
 
-  // C = EMA_c( B delayed by brushLatency )
-  pushBHistory(posB);
-  const delayedB = getBDelayedPos(params.brushLatency, W, H);
-  const posC = emaStep(emaC, delayedB, alphaC);
+      let posB;
+      if (reportAccum >= 1 - REPORT_EPSILON || lastReportedB === null) {
+        reportAccum = Math.max(0, reportAccum - 1);
+        reportCount++;
+        const delayedA = delayed(posHistory, params.pointerLatency, { x: W / 2, y: H / 2 });
+        posB = emaStep(emaB, delayedA, emaAlpha(params.pointerSmoothing));
+        lastReportedB = { x: posB.x, y: posB.y };
+      } else {
+        // Between reports: hold the last position (don't run EMA)
+        posB = { x: lastReportedB.x, y: lastReportedB.y };
+      }
 
-  return { posB: { x: posB.x, y: posB.y }, posC: { x: posC.x, y: posC.y } };
-}
+      // --- C: B delayed by brush latency → EMA ---
+      pushCapped(posBHistory, posB);
+      const delayedB = delayed(posBHistory, params.brushLatency, { x: W / 2, y: H / 2 });
+      const posC = emaStep(emaC, delayedB, emaAlpha(params.brushSmoothing));
 
-/**
- * Pre-warm: run the simulation for HISTORY_SIZE frames so trails/history are populated.
- *
- * @param {number} W - canvas width
- * @param {number} H - canvas height
- * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate, brushSpacing, brushTrailLength }
- * @returns {{ t: number, posA: object, posB: object, posC: object }} final time and positions
- */
-export function preWarm(W, H, params) {
-  let t = 0;
-  let posA, posB, posC;
-  for (let i = 0; i < HISTORY_SIZE; i++) {
-    t += params.penSpeed * TIME_STEP_SCALE;
-    posA = autoPosition(t, W, H, params.pathType || 'lissajous');
-    pushHistory(posA);
-    ({ posB, posC } = computeCurrentPositions(W, H, params));
-    pushBrushTrail(posC, params.brushSpacing, params.brushTrailLength);
-  }
-  return { t, posA, posB, posC };
+      sim.pushBrushTrail(posC, params.brushSpacing, params.brushTrailLength);
+      sim.current = { posA, posB, posC };
+      return sim.current;
+    },
+
+    /**
+     * Push a C position into the brush trail ring buffer.
+     * When brushSpacing > 0, only adds a point if C has moved at least that many
+     * pixels from the last recorded point. brushSpacing = 0 means continuous.
+     * Capacity is enforced first, so it holds even when spacing skips the point.
+     */
+    pushBrushTrail(pos, brushSpacing = 0, maxTrailLength = BRUSH_TRAIL_MAX) {
+      const cap = Math.max(1, Math.floor(maxTrailLength) || 1);
+      if (brushTrail.length > cap) brushTrail.splice(0, brushTrail.length - cap);
+
+      if (brushSpacing > 0 && brushTrail.length > 0) {
+        const last = brushTrail[brushTrail.length - 1];
+        const dx = pos.x - last.x;
+        const dy = pos.y - last.y;
+        if (dx * dx + dy * dy < brushSpacing * brushSpacing) return;
+      }
+      brushTrail.push({ x: pos.x, y: pos.y });
+      if (brushTrail.length > cap) brushTrail.shift();
+    },
+
+    /**
+     * Pre-warm: reset, then run HISTORY_SIZE ticks so histories and trail are populated.
+     * @returns {{ posA: object, posB: object, posC: object }} final positions
+     */
+    warmUp(W, H, params) {
+      sim.reset();
+      for (let i = 0; i < HISTORY_SIZE; i++) sim.step(W, H, params);
+      return sim.current;
+    },
+  };
+
+  return sim;
 }
