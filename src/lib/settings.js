@@ -10,9 +10,36 @@
  *   number  — { type: 'number', default, min, max, step }  (values snap to the min + n*step grid, like a range input)
  *   boolean — { type: 'boolean', default }
  *   enum    — { type: 'enum', default, options: [{ value, label }] }
+ *
+ * The `Settings` type below is derived from this object, so it needs no editing
+ * when a setting is added, and `settings.misspelled` is a type error.
  */
 
-export const SETTINGS = {
+/**
+ * The JS type of one setting's value, from its spec: a number spec holds a
+ * number, a boolean spec a boolean, an enum spec one of its option values.
+ * @template S
+ * @typedef {S extends { type: 'number' } ? number
+ *   : S extends { type: 'boolean' } ? boolean
+ *   : S extends { options: readonly { value: infer V }[] } ? V
+ *   : never} SettingValue
+ */
+
+/** @typedef {typeof SETTINGS} SettingsSchema */
+
+/** @typedef {keyof SettingsSchema} SettingKey */
+
+/** The keys whose setting is a number (the ones with a range and step). */
+/** @typedef {{ [K in SettingKey]: SettingsSchema[K] extends { type: 'number' } ? K : never }[SettingKey]} NumberSettingKey */
+
+/**
+ * A complete set of settings: one value per key in SETTINGS.
+ * @typedef {{ -readonly [K in SettingKey]: SettingValue<SettingsSchema[K]> }} Settings
+ */
+
+// Object.freeze gives the schema a closed type: TypeScript treats a plain object literal in a .js file as
+// open-ended, which would let a misspelled key like SETTINGS.pointerLatencyy pass unnoticed
+export const SETTINGS = Object.freeze(/** @type {const} */ ({
   // Pen
   penSpeed: { type: 'number', default: 3, min: 0.5, max: 10, step: 0.5 },
   pathType: {
@@ -80,13 +107,13 @@ export const SETTINGS = {
   showTracks: { type: 'boolean', default: true },
   showCircles: { type: 'boolean', default: true },
   showRates: { type: 'boolean', default: false },
-};
+}));
 
-export const SETTING_KEYS = Object.keys(SETTINGS);
+export const SETTING_KEYS = /** @type {SettingKey[]} */ (Object.keys(SETTINGS));
 
-export const DEFAULT_SETTINGS = Object.freeze(
+export const DEFAULT_SETTINGS = /** @type {Readonly<Settings>} */ (Object.freeze(
   Object.fromEntries(SETTING_KEYS.map(k => [k, SETTINGS[k].default]))
-);
+));
 
 function decimalPlaces(n) {
   return (String(n).split('.')[1] || '').length;
@@ -97,7 +124,10 @@ function decimalPlaces(n) {
  * the same grid an <input type="range"> uses, so imported values always agree
  * with the slider that displays them.
  */
-export function snapToStep(spec, raw) {
+export function snapToStep(
+  /** @type {{ min: number, max: number, step: number }} */ spec,
+  /** @type {number} */ raw,
+) {
   const clamp = (n) => Math.min(spec.max, Math.max(spec.min, n));
   let v = clamp(raw);
   if (spec.step > 0) {
@@ -143,13 +173,16 @@ function checkValue(spec, raw) {
  * wrongly-typed values are clamped or replaced with defaults.
  *
  * @param {*} raw - untrusted data (parsed JSON, localStorage contents, ...)
- * @returns {{ settings: object, adjusted: string[], invalid: string[] }}
+ * @returns {{ settings: Settings, adjusted: SettingKey[], invalid: SettingKey[] }}
  *   adjusted/invalid list the keys that needed correction.
  */
 export function sanitizeSettings(raw) {
   const source = raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  /** @type {Record<string, any>} */
   const settings = {};
+  /** @type {SettingKey[]} */
   const adjusted = [];
+  /** @type {SettingKey[]} */
   const invalid = [];
 
   for (const key of SETTING_KEYS) {
@@ -164,5 +197,5 @@ export function sanitizeSettings(raw) {
     else if (status === 'invalid') invalid.push(key);
   }
 
-  return { settings, adjusted, invalid };
+  return { settings: /** @type {Settings} */ (settings), adjusted, invalid };
 }

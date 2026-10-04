@@ -4,15 +4,18 @@
     renamePreset, exportPresets, importPresets, PresetError, MAX_NAME_LENGTH,
   } from '$lib/presets.js';
 
+  /** @type {{ getCurrentSettings: () => import('$lib/settings.js').Settings, onLoadPreset: (data: unknown) => void }} */
   let { getCurrentSettings, onLoadPreset } = $props();
 
   let presets = $state(loadPresetList());
   let saveName = $state('');
   let editingIdx = $state(-1);
   let editName = $state('');
+  /** @type {HTMLInputElement} */
   let fileInput;
 
   // Status line under the controls: { text, error }
+  /** @type {{ text: string, error: boolean } | null} */
   let message = $state(null);
 
   function refresh() {

@@ -402,10 +402,21 @@ penSpeed → time increment → autoPosition(time, pathType) → posA
 ## Build & Deploy
 
 - **Dev**: `bun run dev` (or `npm run dev`) — Vite dev server with HMR
+- **Check**: `bun run check` — `svelte-check` over `src` using `jsconfig.json` (checked JSDoc, no TypeScript migration). See Type Checking below
 - **Test**: `bun run test` — `node:test` unit tests in `tests/` covering settings validation, preset storage and the simulation/screen math (no browser needed)
 - **Build**: `bun run build` — produces optimized static files in `dist/`. With `CI=true` the build fails on Svelte compiler warnings.
-- **CI**: Pull requests run `bun install --frozen-lockfile`, tests and the build (`.github/workflows/ci.yml`)
+- **CI**: Pull requests run `bun install --frozen-lockfile`, the type check, tests and the build (`.github/workflows/ci.yml`)
 - **Deploy**: Push to `master` → GitHub Actions runs the same checks, then deploys to GitHub Pages at `/WebDrawTabLagSim/`
+
+## Type Checking
+
+`bun run check` runs `svelte-check` with `jsconfig.json` (`checkJs`, `src/**/*.js`, `.svelte` and `.d.ts`). It runs in CI on every pull request and before every deploy. The code stays JavaScript; the types are JSDoc.
+
+- **Settings.** `Settings` (in `settings.js`) is derived from the `SETTINGS` schema with a conditional type: a number spec gives `number`, a boolean spec `boolean`, an enum spec the union of its option values. So adding a setting is still one entry, and `settings.misspelled`, `settings.reportRate = 'fast'` and `settings.pathType = 'spiral'` are all errors. `NumberSettingKey` is the keys with a range, used by the sliders.
+- **`SETTINGS` is frozen.** TypeScript treats a plain object literal in a `.js` file as open-ended, so a misspelled key on it reads as `any` without an error. `Object.freeze` gives it a closed type (and makes the schema read-only at runtime).
+- **Contracts.** `src/lib/types.js` holds `Position`, `SimParams`, `SimSnapshot`, `Simulation`, `ReferenceParams`, `ReferenceTracks`, `ScreenState`, `ScreenDrawMode` and `AdvanceScreenOptions`. The simulation, reference and screen functions use them, and every component types its props with a JSDoc `@type` on the `$props()` destructure. A typo in an `advanceScreen` option, a position missing `y`, or incomplete simulation params fails the check.
+- **Staged strictness.** `strict` is off: `noImplicitAny` would report about 264 unannotated parameters on internal helpers (mostly `drawing.js`, `Canvas.svelte`, `animation.js`), which is an incremental sweep, not a bug list. Until it is on, a function with an unannotated parameter is not type-checked at its call sites. `tests/` is not in the check (it needs `@types/node`).
+- **Versions.** `typescript` is `^6` because `svelte-check` 4 accepts `^5 || ^6` as a peer.
 
 ## Module Dependency Graph
 
