@@ -1,8 +1,8 @@
 // Longest frame gap (ms) the refresh clock will catch up on
 const MAX_REFRESH_DT_MS = 250;
 
-// With anti-aliasing off, a pixel counts as covered when its alpha reaches this
-const ALIAS_ALPHA_THRESHOLD = 128;
+// With anti-aliasing off, a pixel counts as covered when its geometric coverage reaches this
+const COVERAGE_THRESHOLD = 128;
 
 /**
  * The persistent pixel state used for response-time blending.
@@ -87,6 +87,70 @@ export function planScreenUpdate(screen, { dirty, frozen, dtMs, refreshRateHz })
   return { redraw: count > 0, blendMs: count * 1000 / refreshRateHz };
 }
 
+// An opaque version of a color: the same hue with the alpha dropped
+const RGBA_COLOR = /^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*[\d.]+\s*\)$/i;
+
+export function opaqueColor(style) {
+  if (typeof style !== 'string') return style;
+  const rgba = RGBA_COLOR.exec(style);
+  if (rgba) return `rgb(${rgba[1]}, ${rgba[2]}, ${rgba[3]})`;
+  if (/^#[0-9a-f]{8}$/i.test(style)) return style.slice(0, 7);
+  if (/^#[0-9a-f]{4}$/i.test(style)) return style.slice(0, 4);
+  return style;
+}
+
+/**
+ * Wrap a 2D context so everything drawn through it is fully opaque: colors lose
+ * their alpha and globalAlpha stays 1. Drawing the same content through this
+ * wrapper yields a pure geometric coverage mask, free of the content's own
+ * (intentional) transparency.
+ */
+export function opaqueContext(ctx) {
+  return new Proxy(ctx, {
+    get(target, key) {
+      const value = target[key];
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+    set(target, key, value) {
+      if (key === 'strokeStyle' || key === 'fillStyle') target[key] = opaqueColor(value);
+      else if (key === 'globalAlpha') target[key] = 1;
+      else target[key] = value;
+      return true;
+    },
+  });
+}
+
+/**
+ * Remove anti-aliasing from the frame just drawn on the screen canvas.
+ *
+ * Canvas 2D cannot turn vector anti-aliasing off, and an edge pixel's alpha mixes
+ * two things: how much of the pixel the shape covers (anti-aliasing) and how
+ * transparent the paint is (the brush tail is deliberately faint). So the content
+ * is drawn a second time, fully opaque, to get coverage alone. A pixel is then
+ * either covered (>= COVERAGE_THRESHOLD) or not drawn, and a covered pixel keeps
+ * the paint's own opacity, recovered as drawn alpha / coverage.
+ */
+function aliasFrame(screen, draw) {
+  const { ctx, width, height } = screen;
+  const frame = ctx.getImageData(0, 0, width, height);
+  const pixels = frame.data;
+
+  ctx.clearRect(0, 0, width, height);
+  draw(ctx, { coverage: true });
+  const coverage = ctx.getImageData(0, 0, width, height).data;
+
+  for (let i = 0; i < width * height; i++) {
+    const pi = i * 4;
+    const cover = coverage[pi + 3];
+    if (cover >= COVERAGE_THRESHOLD) {
+      pixels[pi + 3] = Math.min(255, Math.round((pixels[pi + 3] / cover) * 255));
+    } else {
+      pixels[pi] = pixels[pi + 1] = pixels[pi + 2] = pixels[pi + 3] = 0;
+    }
+  }
+  ctx.putImageData(frame, 0, 0);
+}
+
 /**
  * Advance the screen layer by `simMs` of simulated time: redraw it if the plan
  * says so, then blend into the persistent pixel buffer.
@@ -99,7 +163,10 @@ export function planScreenUpdate(screen, { dirty, frozen, dtMs, refreshRateHz })
  *
  * @param {object} screen - from createScreen()
  * @param {object} opts - { dirty, frozen, simMs, refreshRateHz, responseTimeMs, antiAlias }
- * @param {(ctx: CanvasRenderingContext2D) => void} draw - draws this tick's pointer/stroke
+ * @param {(ctx: CanvasRenderingContext2D, mode: { coverage: boolean }) => void} draw -
+ *   draws this tick's pointer/stroke. With anti-aliasing off it is called a second time
+ *   with `mode.coverage` true and should draw the same geometry (it may use
+ *   opaqueContext() to drop the content's own transparency)
  * @returns {boolean} whether the layer was redrawn
  */
 export function advanceScreen(
@@ -112,10 +179,11 @@ export function advanceScreen(
 
   // Clear to transparent (so tracks show through), then draw at screen resolution
   screen.ctx.clearRect(0, 0, screen.width, screen.height);
-  draw(screen.ctx);
+  draw(screen.ctx, { coverage: false });
+  if (!antiAlias) aliasFrame(screen, draw);
 
   // Response time blending (ghosting); an infinite interval snaps to the target
-  commitFrame(screen, responseTimeMs, plan.blendMs, { antiAlias });
+  commitFrame(screen, responseTimeMs, plan.blendMs);
   return true;
 }
 
@@ -126,16 +194,11 @@ export function advanceScreen(
  * Blending is done on premultiplied color, so a fading pixel keeps its hue and
  * loses only opacity.
  *
- * Canvas 2D cannot turn vector anti-aliasing off, so with `antiAlias: false`
- * the drawn frame is thresholded instead: a pixel is either fully covered or
- * not drawn at all, which gives hard, jagged edges at the screen's resolution.
- *
  * @param {object} screen
  * @param {number} responseTimeMs - pixel response time constant
  * @param {number} dtMs - simulated time to blend over (Infinity snaps to the target)
- * @param {{ antiAlias?: boolean }} [opts]
  */
-export function commitFrame(screen, responseTimeMs, dtMs, { antiAlias = true } = {}) {
+export function commitFrame(screen, responseTimeMs, dtMs) {
   const { ctx, colorBuffer, width, height } = screen;
   const imageData = ctx.getImageData(0, 0, width, height);
   const pixels = imageData.data;
@@ -147,8 +210,7 @@ export function commitFrame(screen, responseTimeMs, dtMs, { antiAlias = true } =
     const pi = i * 4;
 
     // Target pixel (what was just drawn), as premultiplied color
-    let targetAlpha = pixels[pi + 3];
-    if (!antiAlias) targetAlpha = targetAlpha >= ALIAS_ALPHA_THRESHOLD ? 255 : 0;
+    const targetAlpha = pixels[pi + 3];
     const coverage = targetAlpha / 255;
 
     colorBuffer[pi] += k * (pixels[pi] * coverage - colorBuffer[pi]);

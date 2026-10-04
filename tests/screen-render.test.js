@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { advanceScreen, createColorBuffer, resizeScreen } from '../src/lib/screen.js';
+import {
+  advanceScreen, createColorBuffer, resizeScreen, opaqueColor, opaqueContext,
+} from '../src/lib/screen.js';
+import { drawBrushStroke } from '../src/lib/drawing.js';
 import { TICK_MS } from '../src/lib/constants.js';
 
 const W = 8;
@@ -134,4 +137,104 @@ test('a response time far longer than the run leaves the buffer almost unchanged
   advanceScreen(s, { ...OPTS, dirty: true }, paint(s, 0, [200, 100, 50, 255]));
   advanceScreen(s, { ...OPTS, dirty: false, responseTimeMs: 1e9 }, () => {});
   assert.deepEqual(px(s, 0), [200, 100, 50, 255]);
+});
+
+// --- anti-aliasing off must keep the paint's own opacity ---
+
+/**
+ * A draw callback that knows about the coverage pass: `color` is what the normal
+ * pass leaves in pixel `x`, `cover` is the alpha the opaque (coverage) pass leaves.
+ */
+const paintWithCoverage = (screen, x, color, cover) => (ctx, mode) => {
+  const [r, g, b, a] = color;
+  screen.pixels.set(mode && mode.coverage ? [r, g, b, cover] : [r, g, b, a], x * 4);
+};
+
+test('anti-aliasing off keeps a fully covered translucent pixel (a faint brush tail)', () => {
+  const s = fakeScreen();
+  // The brush tail is deliberately faint: alpha 0.08 * 255 = 20, but the pixel is fully inside the shape
+  advanceScreen(s, { ...OPTS, dirty: true, antiAlias: false }, paintWithCoverage(s, 0, [60, 140, 130, 20], 255));
+  assert.deepEqual(px(s, 0), [60, 140, 130, 20]); // not deleted, and not made opaque
+});
+
+test('anti-aliasing off removes edge softness but keeps the paint opacity at the edge', () => {
+  const s = fakeScreen();
+  // Translucent paint (opacity 0.4) over a 60% covered edge pixel: drawn alpha 0.4 * 0.6 * 255 = 61
+  advanceScreen(s, { ...OPTS, dirty: true, antiAlias: false }, paintWithCoverage(s, 0, [60, 140, 130, 61], 153));
+  assert.ok(Math.abs(px(s, 0)[3] - 102) <= 1, `alpha ${px(s, 0)[3]}`); // 0.4 * 255
+  // Below the coverage threshold the pixel is not drawn at all, however opaque the paint
+  advanceScreen(s, { ...OPTS, dirty: true, antiAlias: false }, paintWithCoverage(s, 1, [60, 140, 130, 100], 100));
+  assert.equal(px(s, 1)[3], 0);
+});
+
+test('with anti-aliasing off, translucent and solid paint both stay as drawn when fully covered', () => {
+  const s = fakeScreen();
+  advanceScreen(s, { ...OPTS, dirty: true, antiAlias: false }, () => {});
+  const draw = (ctx, mode) => {
+    const cover = 255;
+    for (const [x, a] of [[0, 255], [1, 140], [2, 70], [3, 20]]) {
+      s.pixels.set([10, 20, 30, mode.coverage ? cover : a], x * 4);
+    }
+  };
+  advanceScreen(s, { ...OPTS, dirty: true, antiAlias: false }, draw);
+  assert.deepEqual([0, 1, 2, 3].map(x => px(s, x)[3]), [255, 140, 70, 20]);
+});
+
+test('anti-aliasing on does not run the coverage pass', () => {
+  const s = fakeScreen();
+  const modes = [];
+  advanceScreen(s, { ...OPTS, dirty: true, antiAlias: true }, (ctx, mode) => modes.push(mode.coverage));
+  assert.deepEqual(modes, [false]);
+  modes.length = 0;
+  advanceScreen(fakeScreen(), { ...OPTS, dirty: true, antiAlias: false }, (ctx, mode) => modes.push(mode.coverage));
+  assert.deepEqual(modes, [false, true]);
+});
+
+// --- the opaque wrapper ---
+
+test('opaqueColor drops alpha and leaves opaque colors alone', () => {
+  assert.equal(opaqueColor('rgba(60, 140, 130, 0.08)'), 'rgb(60, 140, 130)');
+  assert.equal(opaqueColor('rgba(110,190,180,0.15)'), 'rgb(110, 190, 180)');
+  assert.equal(opaqueColor('#2e8b5780'), '#2e8b57');
+  assert.equal(opaqueColor('#2e8b'), '#2e8');
+  for (const same of ['#ffffff', '#222222', 'rgb(1, 2, 3)', 'red']) assert.equal(opaqueColor(same), same);
+  const gradient = {};
+  assert.equal(opaqueColor(gradient), gradient);
+});
+
+test('opaqueContext forces opaque styles and passes everything else through', () => {
+  const calls = [];
+  const ctx = {
+    strokeStyle: '', fillStyle: '', globalAlpha: 1, lineWidth: 1,
+    save() { calls.push(['save', this === ctx]); },
+    stroke() { calls.push(['stroke', this === ctx]); },
+  };
+  const o = opaqueContext(ctx);
+  o.strokeStyle = 'rgba(60, 140, 130, 0.08)';
+  o.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  o.globalAlpha = 0.3;
+  o.lineWidth = 7;
+  o.save();
+  o.stroke();
+  assert.equal(ctx.strokeStyle, 'rgb(60, 140, 130)');
+  assert.equal(ctx.fillStyle, 'rgb(0, 0, 0)');
+  assert.equal(ctx.globalAlpha, 1);
+  assert.equal(ctx.lineWidth, 7);
+  assert.deepEqual(calls, [['save', true], ['stroke', true]]); // methods run on the real context
+});
+
+test('the brush stroke drawn through the opaque wrapper uses no transparent colors', () => {
+  const styles = [];
+  const noop = () => {};
+  const stub = {
+    save: noop, restore: noop, beginPath: noop, moveTo: noop, lineTo: noop, stroke: noop,
+    set strokeStyle(v) { styles.push(v); }, set lineWidth(_) {}, set lineCap(_) {}, set lineJoin(_) {},
+  };
+  const trail = Array.from({ length: 40 }, (_, i) => ({ x: i * 3, y: 10 + Math.sin(i / 5) * 8 }));
+  for (const smooth of [false, true]) {
+    styles.length = 0;
+    drawBrushStroke(opaqueContext(stub), trail, 4, smooth);
+    assert.ok(styles.length > 0);
+    assert.ok(styles.every(c => /^rgb\(/.test(c)), `smooth=${smooth}: ${styles.find(c => !/^rgb\(/.test(c))}`);
+  }
 });

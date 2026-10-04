@@ -9,7 +9,7 @@
     drawPointer, drawCrosshair, drawPen,
   } from '$lib/drawing.js';
   import {
-    createScreen, resizeScreen, advanceScreen,
+    createScreen, resizeScreen, advanceScreen, opaqueContext,
     renderScreenToMain,
   } from '$lib/screen.js';
 
@@ -377,7 +377,9 @@
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
     // Draw this tick's pointer and stroke into the screen layer (screen resolution)
-    function drawScreenLayer(sctx) {
+    function drawScreenLayer(target, { coverage = false } = {}) {
+      // The coverage pass draws the same geometry fully opaque (see aliasFrame in screen.js)
+      const sctx = coverage ? opaqueContext(target) : target;
       sctx.save();
       sctx.scale(screen.width / logicalW, screen.height / logicalH);
 

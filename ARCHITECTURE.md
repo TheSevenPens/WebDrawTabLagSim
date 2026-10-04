@@ -136,11 +136,16 @@ where `tension = 0.5` (standard Catmull-Rom). At the ends of the trail, boundary
 
 This eliminates the sharp corners that appear when widely-spaced points are connected by straight lines. The curve naturally flows through each sample point.
 
-#### Layer 2: Per-Segment Subdivision (up to 16×)
+#### Layer 2: Per-Segment Subdivision (1, 2, 4, 8 or 16 pieces)
 
 Catmull-Rom alone still has a visual problem: each segment is drawn as a **single canvas stroke with one width**, so the line width jumps discontinuously at each control point. If trail point i has width 12px and point i+1 has width 18px, you see a sudden step.
 
-To fix this, each Catmull-Rom segment is **subdivided into sub-segments**, up to 16 and adaptive: about one piece per 3 px of chord length (`subdivisionsFor()`), at least 1. Every piece is its own `stroke()` call, and trail segments at normal speeds are only a few pixels long, so a fixed 16 drew thousands of sub-pixel strokes per frame (measured at about 17 ms for a 300-point trail at devicePixelRatio 2, over the whole 60 fps budget; about 0.4 ms adaptive). A 3 px chord of a smooth curve stays within half a pixel of the 16-piece curve (tested on real trails, including star corners); widely spaced points (large Brush Spacing) still get the full 16. For each subdivision step `s` from 0 to 1:
+To fix this, each Catmull-Rom segment is **subdivided into sub-segments**: 1, 2, 4, 8 or 16, chosen per segment by `subdivisionsFor()`. Every piece is its own `stroke()` call, and a fixed 16 per segment drew thousands of strokes per frame (measured at about 17 ms for a 300-point trail at devicePixelRatio 2, over the whole 60 fps budget; about 0.7 ms adaptive). The rule is the fewest pieces that satisfy both:
+
+- **Geometry.** The polyline stays within 0.25 px of the 16-piece curve (checked against that curve directly, so it needs no curvature estimate). This looks at the curve itself, not the distance between the endpoints: at low tablet report rates the trail holds repeated positions, and two identical endpoints can still have a curved Bezier when their neighbors pull it (up to ~7 px at 1 Hz). Straight runs need one piece however long they are.
+- **Paint.** Width and opacity change along the trail and each piece is drawn with one value, so a change of more than 0.5 px of width or 0.03 of opacity per piece needs more pieces. Short trails change fastest per segment.
+
+Powers of two keep the pieces nested in the 16, so the geometry guarantee holds whatever the paint demands. Tests compare against the 16-piece curve on real trails at report rates from 60 down to 1 Hz, on star corners, and with brush spacing. For each subdivision step `s` from 0 to 1:
 
 1. **Position** is evaluated on the cubic Bezier using De Casteljau's algorithm:
    ```
@@ -254,7 +259,12 @@ Fast response (1ms) → near-instant transition. Slow response (200ms) → visib
 
 ### Anti-aliasing (AA)
 
-Canvas 2D has no switch for vector anti-aliasing (`imageSmoothingEnabled` only affects scaled images, so it did nothing here). With AA off, `commitFrame` thresholds the freshly drawn frame instead: a pixel with alpha of at least 128 becomes fully covered, anything below is not drawn, so the pointer and stroke get hard, jagged edges at the screen's resolution. With AA on, partial coverage is kept as partially transparent pixels.
+Canvas 2D has no switch for vector anti-aliasing (`imageSmoothingEnabled` only affects scaled images, so it did nothing here). A pixel's alpha mixes two things: how much of the pixel a shape covers (anti-aliasing), and how transparent the paint is (the brush tail is deliberately faint, 0.08 opacity at its end). Thresholding the alpha would delete the tail, so with AA off the layer is drawn **twice** (`aliasFrame()` in `screen.js`):
+
+1. the normal pass, giving color and opacity;
+2. a coverage pass through `opaqueContext()`, a wrapper that drops the alpha from every color, giving the geometric coverage alone.
+
+A pixel is covered when its coverage is at least 128, and is then kept with the paint's own opacity (drawn alpha / coverage); otherwise it is not drawn. The result has hard, jagged edges at the screen's resolution and keeps the faint tail. With AA on, partial coverage stays as partially transparent pixels and the second pass is skipped. (It costs about one extra draw: a 320×180 layer is about 2.5 ms with AA on and 3.6 ms off.)
 
 ### What the markers mean in screen mode
 

@@ -173,19 +173,82 @@ export function evalBezier(p0x, p0y, cp1x, cp1y, cp2x, cp2y, p1x, p1y, s) {
 // Most pieces one trail segment is split into when smooth stroke is enabled
 const SUBDIVISIONS = 16;
 
-// Aim for pieces about this long (in the units being drawn in). Each piece is a
-// separate stroke() call, and trail segments are usually only a few pixels, so
-// a fixed 16 pieces per segment drew thousands of sub-pixel strokes per frame.
-// A 3 px chord of a smooth curve deviates by well under a pixel from the curve;
-// long segments (large brush spacing) still get the full 16.
-const SUBDIVISION_TARGET_LENGTH = 3;
+// Each piece is a separate stroke() call, and a fixed 16 pieces per trail segment
+// drew thousands of sub-pixel strokes per frame. A segment needs only as many
+// pieces as its curve and its paint demand:
+const GEOMETRY_TOLERANCE = 0.25; // max distance from the 16-piece curve, px
+const WIDTH_TOLERANCE = 0.5; // max change in line width within one piece, px
+const ALPHA_TOLERANCE = 0.03; // max change in opacity within one piece
+
+function distanceToChordSquared(p, a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  const ex = p.x - (a.x + t * dx);
+  const ey = p.y - (a.y + t * dy);
+  return ex * ex + ey * ey;
+}
 
 /**
- * How many pieces to split the curve between trail points p1 and p2 into.
+ * Whether `pieces` uniform pieces (a divisor of the fine curve's 16) stay within
+ * `tolerance` of the fine curve's points.
  */
-export function subdivisionsFor(p1, p2) {
-  const length = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-  return Math.min(SUBDIVISIONS, Math.max(1, Math.ceil(length / SUBDIVISION_TARGET_LENGTH)));
+function polylineWithin(fine, pieces, tolerance) {
+  const step = SUBDIVISIONS / pieces;
+  const limit = tolerance * tolerance;
+  for (let j = 0; j < pieces; j++) {
+    const a = fine[j * step];
+    const b = fine[(j + 1) * step];
+    for (let m = j * step + 1; m < (j + 1) * step; m++) {
+      if (distanceToChordSquared(fine[m], a, b) > limit) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * How many pieces (1, 2, 4, 8 or 16) to split one trail segment's curve into.
+ *
+ * The fewest that satisfy both:
+ *  - geometry: the polyline stays within GEOMETRY_TOLERANCE of the 16-piece curve.
+ *    This looks at the curve itself, not the endpoint distance: identical
+ *    endpoints (a held tablet sample at a low report rate) can still have a
+ *    curved Bezier when the neighboring points pull it, and straight runs need
+ *    just one piece however long they are.
+ *  - paint: width and opacity change along the trail, and each piece is drawn
+ *    with a single value, so steep changes (short trails change fastest per
+ *    segment) need more pieces.
+ * Powers of two keep the pieces nested in the 16, so the geometry guarantee
+ * holds for whatever the paint demands on top.
+ *
+ * @param {object} p1 - segment start
+ * @param {object} p2 - segment end
+ * @param {{cp1x, cp1y, cp2x, cp2y}} c - Bezier control points from catmullRomToBezier
+ * @param {number} [widthChange] - |line width change| across the whole segment
+ * @param {number} [alphaChange] - |opacity change| across the whole segment
+ */
+export function subdivisionsFor(p1, p2, c, widthChange = 0, alphaChange = 0) {
+  const byPaint = Math.max(1, Math.ceil(widthChange / WIDTH_TOLERANCE), Math.ceil(alphaChange / ALPHA_TOLERANCE));
+  if (byPaint >= SUBDIVISIONS) return SUBDIVISIONS;
+
+  const fine = [{ x: p1.x, y: p1.y }];
+  for (let k = 1; k <= SUBDIVISIONS; k++) {
+    fine.push(evalBezier(p1.x, p1.y, c.cp1x, c.cp1y, c.cp2x, c.cp2y, p2.x, p2.y, k / SUBDIVISIONS));
+  }
+
+  let geometry = SUBDIVISIONS;
+  for (const pieces of [1, 2, 4, 8]) {
+    if (polylineWithin(fine, pieces, GEOMETRY_TOLERANCE)) {
+      geometry = pieces;
+      break;
+    }
+  }
+
+  const needed = Math.max(geometry, byPaint);
+  let pieces = 1;
+  while (pieces < needed) pieces *= 2;
+  return Math.min(SUBDIVISIONS, pieces);
 }
 
 export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false) {
@@ -211,7 +274,10 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
       const t1 = i / trail.length;
 
       let prevPt = { x: p1.x, y: p1.y };
-      const pieces = subdivisionsFor(p1, p2);
+      const pieces = subdivisionsFor(
+        p1, p2, { cp1x, cp1y, cp2x, cp2y },
+        35 * scale * (t1 * t1 - t0 * t0), 0.55 * (t1 - t0),
+      );
 
       for (let sub = 1; sub <= pieces; sub++) {
         const s = sub / pieces;
@@ -246,7 +312,10 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
       const t1 = i / trail.length;
 
       let prevPt = { x: p1.x, y: p1.y };
-      const pieces = subdivisionsFor(p1, p2);
+      const pieces = subdivisionsFor(
+        p1, p2, { cp1x, cp1y, cp2x, cp2y },
+        35 * scale * (t1 * t1 - t0 * t0), 0.55 * (t1 - t0),
+      );
 
       for (let sub = 1; sub <= pieces; sub++) {
         const s = sub / pieces;
