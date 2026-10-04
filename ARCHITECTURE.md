@@ -24,6 +24,7 @@ src/
     ├── constants.js            — Colors, font, sizes, offsets, buffer limits, tick rate
     ├── settings.js             — Every setting's default/range/options; validation (sanitizeSettings)
     ├── clock.js                — Host frame times → whole simulation ticks
+    ├── rate-meter.js           — Rolling-window rate (events/s) and the frame-rate readout text
     ├── simulation.js           — createSimulation(): instance-owned lag pipeline (delay + EMA + report rate)
     ├── reference.js            — Reference tracks, computed by running an isolated simulation instance
     ├── animation.js            — Path functions (Lissajous, Circle, Star)
@@ -324,6 +325,11 @@ Models the runtime lag pipeline as an **instance**: `createSimulation()` returns
 
 ### `src/lib/clock.js`
 `createClock()` converts host frame times into whole simulation ticks (`advance(dtMs)`, `reset()`), with a frame-gap cap and tick snapping. See Timing Model.
+
+### `src/lib/rate-meter.js`
+`createRateMeter({ windowMs })` measures a rate over about the last second: `record(timestamp, count)` once per animation frame, `rate()` returns events per second (or `null` until there are two samples), `reset()`. `Canvas.svelte` keeps two: host frames per second (count 1 per frame) and simulation ticks per second (the ticks run that frame, which is 0 when the simulation is paused or the display is faster than 60 Hz). A gap longer than the window (a backgrounded tab) or a clock that goes backwards starts the window over, so the reading does not dip to near zero. `formatRates(fps, ticksPerSecond)` builds the text, e.g. `144 fps · 60 ticks/s`.
+
+The readout is the optional `showRates` setting (VIEW → Frame rate, off by default, included in presets). Meters record every frame, which is a few array operations, but the readout's text is only updated every 250 ms. It is a DOM overlay inside the canvas container, so it is not in PNG snapshots or the pop-out window, and it is `aria-hidden` because a continuously changing number would be noise for a screen reader; the checkbox is the accessible control. It is the quickest way to see whether a display really runs at 120 or 144 Hz and whether the simulation keeps up (see #41).
 
 ### `src/lib/reference.js`
 `computeReferenceTracks(W, H, params)` runs an isolated simulation instance and returns one period of tracks A, B and C. See Reference Tracks.

@@ -107,6 +107,7 @@
       <label><input type="checkbox" bind:checked={settings.showLabels}> Labels</label>
       <label><input type="checkbox" bind:checked={settings.showTracks}> Tracks</label>
       <label><input type="checkbox" bind:checked={settings.showCircles}> Circles</label>
+      <label><input type="checkbox" bind:checked={settings.showRates}> Frame rate</label>
     </div>
   </CollapsibleSection>
 
