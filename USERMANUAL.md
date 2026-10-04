@@ -56,12 +56,15 @@ All controls are organized in collapsible sections. Click a section header (▶)
 - **Circles** — toggle all dotted circles around points a, b, and c on or off at once.
 
 **DISPLAY section**
-- **Aspect Ratio** — dropdown to set the canvas aspect ratio: 16:9 (default), 16:10, 4:3, or 1:1. The canvas height stays constant at 600px; width adjusts to match the selected ratio. Changing aspect ratio restarts the simulation.
+- **Aspect Ratio** — dropdown to set the canvas aspect ratio: 16:9 (default), 16:10, 4:3, or 1:1. The canvas is at most 600px tall, with width set by the ratio. In a narrower window it shrinks to fit, keeping the ratio, and on a narrow screen the controls move above the canvas. Changing aspect ratio (or resizing the canvas) restarts the simulation.
 - **Screen mode** — renders pointer and brush stroke onto a simulated pixelated display. When enabled, the following sub-options appear:
 - **Resolution (px)** (80–320) — width of the simulated screen in pixels. Height is derived from the canvas aspect ratio. Lower values create larger, more visible pixels. Try 80 for dramatic pixelation.
 - **Refresh Rate (Hz)** (10–144) — how often the simulated screen updates. At 60 Hz it updates 60 times per second. At 10 Hz the pointer visibly jumps between positions, showing the "sample-and-hold" behavior of real LCDs.
-- **Response Time (ms)** (1–50) — how fast individual pixels transition from one color to another. At 1ms transitions are near-instant. At 50ms you see visible ghosting — a smeared trail behind the moving pointer and brush stroke, caused by pixels still transitioning from their previous color.
+- **Response Time (ms)** (1–200) — how fast individual pixels transition from one color to another. At 1ms transitions are near-instant. At 50ms and above you see visible ghosting — a smeared trail behind the moving pointer and brush stroke, caused by pixels still transitioning from their previous color.
 - **Pixel grid** — shows grid lines between simulated pixels.
+- **AA** — anti-aliasing for the simulated screen. On, edges are soft (partial pixels). Off, every pixel is either fully covered or empty, so the pointer and stroke have hard, jagged edges.
+
+In screen mode the circles and labels mark the *ideal* positions of a, b and c, while the blocky pointer and stroke show what the simulated screen *displays*. The display can lag behind the markers.
 
 **PRESETS section** — see the Presets section below.
 

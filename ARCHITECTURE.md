@@ -54,7 +54,7 @@ FUTURES.md                      — Ideas for improvements
 
 - **Top Panel** (`TopPanel.svelte`): Title and playback controls (Play/Pause, Stop Pen/Resume Pen, Restart, Reset All).
 - **Side Panel** (left, `SidePanel.svelte`, 280–320px): All controls organized in collapsible sections (all collapsed by default). Sections: PEN, TABLET, OS POINTER, BRUSH, VIEW, DISPLAY, PRESETS.
-- **Canvas** (center-right, `Canvas.svelte`): Double-buffered HiDPI `<canvas>` for animation. Constant height of 600px; width computed from the selected aspect ratio. Screenshot button top-left, fullscreen button top-right (⛶ icon).
+- **Canvas** (center-right, `Canvas.svelte`): Double-buffered HiDPI `<canvas>` for animation. At most 600px tall, with width from the selected aspect ratio; when the layout gives it less width (narrow windows, the sidebar) it scales down, keeping the aspect ratio. Screenshot button top-left, fullscreen button top-right (⛶ icon).
 
 ## Lag Model
 
@@ -136,11 +136,11 @@ where `tension = 0.5` (standard Catmull-Rom). At the ends of the trail, boundary
 
 This eliminates the sharp corners that appear when widely-spaced points are connected by straight lines. The curve naturally flows through each sample point.
 
-#### Layer 2: Per-Segment Subdivision (16×)
+#### Layer 2: Per-Segment Subdivision (up to 16×)
 
 Catmull-Rom alone still has a visual problem: each segment is drawn as a **single canvas stroke with one width**, so the line width jumps discontinuously at each control point. If trail point i has width 12px and point i+1 has width 18px, you see a sudden step.
 
-To fix this, each Catmull-Rom segment is **subdivided into 16 sub-segments**. For each subdivision step `s` from 0 to 1:
+To fix this, each Catmull-Rom segment is **subdivided into sub-segments**, up to 16 and adaptive: about one piece per 3 px of chord length (`subdivisionsFor()`), at least 1. Every piece is its own `stroke()` call, and trail segments at normal speeds are only a few pixels long, so a fixed 16 drew thousands of sub-pixel strokes per frame (measured at about 17 ms for a 300-point trail at devicePixelRatio 2, over the whole 60 fps budget; about 0.4 ms adaptive). A 3 px chord of a smooth curve stays within half a pixel of the 16-piece curve (tested on real trails, including star corners); widely spaced points (large Brush Spacing) still get the full 16. For each subdivision step `s` from 0 to 1:
 
 1. **Position** is evaluated on the cubic Bezier using De Casteljau's algorithm:
    ```
@@ -243,11 +243,22 @@ The screen only updates at the configured refresh rate (10–144 Hz). Between re
 Models LCD pixel transition speed. A `Float32Array` color buffer stores the persistent pixel state. On each refresh, new pixel values are blended into the buffer using:
 
 ```
-alpha = 1 - exp(-dt / responseTime)
-pixel = pixel + alpha × (newPixel - pixel)
+k = 1 - exp(-dt / responseTime)
+pixel = pixel + k × (newPixel - pixel)
 ```
 
-Fast response (1ms) → near-instant transition. Slow response (50ms) → visible ghosting/persistence as pixels gradually shift from their old color to the new one.
+Fast response (1ms) → near-instant transition. Slow response (200ms) → visible ghosting/persistence as pixels gradually shift from their old color to the new one.
+
+- **Premultiplied blending.** The buffer holds red, green and blue premultiplied by alpha, plus alpha, and is converted back to straight color for display. A pixel that fades out keeps its hue and loses only opacity. (Blending straight color toward transparent black made ghosts darken toward black as they faded.)
+- **One reset policy.** New and resized screens both start fully transparent (`createColorBuffer()`), so the tracks underneath show through and a resize fades like a fresh screen. (Resize used to start opaque background.)
+
+### Anti-aliasing (AA)
+
+Canvas 2D has no switch for vector anti-aliasing (`imageSmoothingEnabled` only affects scaled images, so it did nothing here). With AA off, `commitFrame` thresholds the freshly drawn frame instead: a pixel with alpha of at least 128 becomes fully covered, anything below is not drawn, so the pointer and stroke get hard, jagged edges at the screen's resolution. With AA on, partial coverage is kept as partially transparent pixels.
+
+### What the markers mean in screen mode
+
+The circles and labels (a, b, c) mark the **ideal** positions from the simulation. The blocky pointer and stroke are what the **simulated screen displays**, which can lag behind the markers (refresh rate and response time), and the stroke is only extended when the brush has moved at least the spacing distance, so its last painted point can trail behind c. A lag measurement should say which of the three it reports: the logical position, the emitted stroke endpoint, or the displayed pixels.
 
 ### Pixel Grid
 
@@ -326,7 +337,7 @@ All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with 
 Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `consumeRefreshes(screen, dtMs, hz)`, `planScreenUpdate(screen, opts)`, `advanceScreen(screen, opts, draw)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
 
 ### `src/components/Canvas.svelte`
-The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and a `requestAnimationFrame` loop that feeds frame times to its own clock and simulation instance. Uses `$effect` to reactively recompute reference tracks when lag/speed/path/report-rate props change. Canvas has a constant height of 600px with width derived from the aspect ratio; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `frozen` is true the clock stops and the canvas keeps drawing the held state (true pause). When `paused` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
+The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and a `requestAnimationFrame` loop that feeds frame times to its own clock and simulation instance. Uses `$effect` to reactively recompute reference tracks when lag/speed/path/report-rate props change. The canvas is at most 600px tall, sized to the space the layout gives it (a `ResizeObserver` on its area, plus pixel-ratio and fullscreen listeners) with the aspect ratio preserved; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `frozen` is true the clock stops and the canvas keeps drawing the held state (true pause). When `paused` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
 
 ### `src/lib/presets.js`
 Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-presets`. Format: `[{ name, data }]` where `data` contains all settings values (including `pointerSize` and `aspectRatio`). Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
@@ -368,7 +379,7 @@ penSpeed → time increment → autoPosition(time, pathType) → posA
                                                                                                       ↓
                                                                           brushTrail[] (capped by brushTrailLength)
                                                                                                       ↓
-                                                                    smoothStroke? → Catmull-Rom + 16× subdivision
+                                                                    smoothStroke? → Catmull-Rom + adaptive subdivision
                                                                                      or straight lineTo segments
                                                                                                       ↓
                                                                                   drawBrushStroke(brushSize, smoothStroke)

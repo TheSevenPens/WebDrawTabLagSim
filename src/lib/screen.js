@@ -1,19 +1,22 @@
-import { COLORS } from './constants.js';
-
-/**
- * Parse the background color hex string to RGB values.
- */
-function parseHexColor(hex) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
-}
-
-const BG = parseHexColor(COLORS.background);
-
 // Longest frame gap (ms) the refresh clock will catch up on
 const MAX_REFRESH_DT_MS = 250;
+
+// With anti-aliasing off, a pixel counts as covered when its alpha reaches this
+const ALIAS_ALPHA_THRESHOLD = 128;
+
+/**
+ * The persistent pixel state used for response-time blending.
+ *
+ * Four floats per pixel: red, green and blue premultiplied by alpha (0..255),
+ * then alpha (0..255). Premultiplied, so a pixel fading out keeps its hue and
+ * only loses opacity, rather than darkening toward black as it goes.
+ *
+ * Every screen, new or resized, starts fully transparent, so the tracks
+ * underneath show through and a resize fades the same way a fresh screen does.
+ */
+export function createColorBuffer(width, height) {
+  return new Float32Array(width * height * 4);
+}
 
 /**
  * Create a simulated screen state object.
@@ -28,20 +31,10 @@ export function createScreen(width, height) {
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
 
-  // Float buffer for response time blending (RGBA per pixel)
-  const colorBuffer = new Float32Array(width * height * 4);
-  // Initialize to background color
-  for (let i = 0; i < width * height; i++) {
-    colorBuffer[i * 4] = 0;
-    colorBuffer[i * 4 + 1] = 0;
-    colorBuffer[i * 4 + 2] = 0;
-    colorBuffer[i * 4 + 3] = 0;
-  }
-
   return {
     canvas,
     ctx,
-    colorBuffer,
+    colorBuffer: createColorBuffer(width, height),
     width,
     height,
     refreshAccum: 0,
@@ -58,13 +51,7 @@ export function resizeScreen(screen, width, height) {
   screen.canvas.height = height;
   screen.ctx.imageSmoothingEnabled = false;
 
-  screen.colorBuffer = new Float32Array(width * height * 4);
-  for (let i = 0; i < width * height; i++) {
-    screen.colorBuffer[i * 4] = BG.r;
-    screen.colorBuffer[i * 4 + 1] = BG.g;
-    screen.colorBuffer[i * 4 + 2] = BG.b;
-    screen.colorBuffer[i * 4 + 3] = 255;
-  }
+  screen.colorBuffer = createColorBuffer(width, height);
   screen.refreshAccum = 0;
 }
 
@@ -111,11 +98,15 @@ export function planScreenUpdate(screen, { dirty, frozen, dtMs, refreshRateHz })
  * still happens once per host frame.
  *
  * @param {object} screen - from createScreen()
- * @param {object} opts - { dirty, frozen, simMs, refreshRateHz, responseTimeMs }
+ * @param {object} opts - { dirty, frozen, simMs, refreshRateHz, responseTimeMs, antiAlias }
  * @param {(ctx: CanvasRenderingContext2D) => void} draw - draws this tick's pointer/stroke
  * @returns {boolean} whether the layer was redrawn
  */
-export function advanceScreen(screen, { dirty, frozen, simMs, refreshRateHz, responseTimeMs }, draw) {
+export function advanceScreen(
+  screen,
+  { dirty, frozen, simMs, refreshRateHz, responseTimeMs, antiAlias = true },
+  draw,
+) {
   const plan = planScreenUpdate(screen, { dirty, frozen, dtMs: simMs, refreshRateHz });
   if (!plan.redraw) return false;
 
@@ -124,34 +115,54 @@ export function advanceScreen(screen, { dirty, frozen, simMs, refreshRateHz, res
   draw(screen.ctx);
 
   // Response time blending (ghosting); an infinite interval snaps to the target
-  commitFrame(screen, responseTimeMs, plan.blendMs);
+  commitFrame(screen, responseTimeMs, plan.blendMs, { antiAlias });
   return true;
 }
 
 /**
  * Blend the current screen canvas frame into the persistent color buffer.
  * Models LCD pixel response time — slow response = ghosting.
+ *
+ * Blending is done on premultiplied color, so a fading pixel keeps its hue and
+ * loses only opacity.
+ *
+ * Canvas 2D cannot turn vector anti-aliasing off, so with `antiAlias: false`
+ * the drawn frame is thresholded instead: a pixel is either fully covered or
+ * not drawn at all, which gives hard, jagged edges at the screen's resolution.
+ *
+ * @param {object} screen
+ * @param {number} responseTimeMs - pixel response time constant
+ * @param {number} dtMs - simulated time to blend over (Infinity snaps to the target)
+ * @param {{ antiAlias?: boolean }} [opts]
  */
-export function commitFrame(screen, responseTimeMs, dtMs) {
+export function commitFrame(screen, responseTimeMs, dtMs, { antiAlias = true } = {}) {
   const { ctx, colorBuffer, width, height } = screen;
   const imageData = ctx.getImageData(0, 0, width, height);
   const pixels = imageData.data;
 
   // Blend factor: 1.0 = instant, small = ghosting
-  const alpha = 1 - Math.exp(-dtMs / Math.max(responseTimeMs, 0.1));
+  const k = 1 - Math.exp(-dtMs / Math.max(responseTimeMs, 0.1));
 
   for (let i = 0; i < width * height; i++) {
     const pi = i * 4;
-    colorBuffer[pi] += alpha * (pixels[pi] - colorBuffer[pi]);
-    colorBuffer[pi + 1] += alpha * (pixels[pi + 1] - colorBuffer[pi + 1]);
-    colorBuffer[pi + 2] += alpha * (pixels[pi + 2] - colorBuffer[pi + 2]);
-    colorBuffer[pi + 3] += alpha * (pixels[pi + 3] - colorBuffer[pi + 3]);
 
-    // Write back to image data
-    pixels[pi] = Math.round(colorBuffer[pi]);
-    pixels[pi + 1] = Math.round(colorBuffer[pi + 1]);
-    pixels[pi + 2] = Math.round(colorBuffer[pi + 2]);
-    pixels[pi + 3] = Math.round(colorBuffer[pi + 3]);
+    // Target pixel (what was just drawn), as premultiplied color
+    let targetAlpha = pixels[pi + 3];
+    if (!antiAlias) targetAlpha = targetAlpha >= ALIAS_ALPHA_THRESHOLD ? 255 : 0;
+    const coverage = targetAlpha / 255;
+
+    colorBuffer[pi] += k * (pixels[pi] * coverage - colorBuffer[pi]);
+    colorBuffer[pi + 1] += k * (pixels[pi + 1] * coverage - colorBuffer[pi + 1]);
+    colorBuffer[pi + 2] += k * (pixels[pi + 2] * coverage - colorBuffer[pi + 2]);
+    colorBuffer[pi + 3] += k * (targetAlpha - colorBuffer[pi + 3]);
+
+    // Write back as straight (non-premultiplied) color for putImageData
+    const a = colorBuffer[pi + 3];
+    const scale = a > 0 ? 255 / a : 0;
+    pixels[pi] = Math.min(255, Math.round(colorBuffer[pi] * scale));
+    pixels[pi + 1] = Math.min(255, Math.round(colorBuffer[pi + 1] * scale));
+    pixels[pi + 2] = Math.min(255, Math.round(colorBuffer[pi + 2] * scale));
+    pixels[pi + 3] = Math.round(a);
   }
 
   ctx.putImageData(imageData, 0, 0);

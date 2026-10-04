@@ -90,7 +90,8 @@
     if (screenMode) {
       parts.push(
         `Screen simulation is on: ${screenResolution} pixels wide, refreshing ${screenRefreshRate} times per second `
-          + `with a ${screenResponseTime} ms pixel response time.`,
+          + `with a ${screenResponseTime} ms pixel response time. `
+          + `The circles and labels mark the ideal positions; the blocky pointer and stroke show what the simulated screen displays, which can lag behind them.`,
       );
     }
     if (frozen) parts.push('The simulation is paused.');
@@ -378,7 +379,6 @@
     // Draw this tick's pointer and stroke into the screen layer (screen resolution)
     function drawScreenLayer(sctx) {
       sctx.save();
-      sctx.imageSmoothingEnabled = screenAntiAlias;
       sctx.scale(screen.width / logicalW, screen.height / logicalH);
 
       if (showBrushStroke) drawBrushStroke(sctx, sim.brushTrail, brushSize, smoothStroke);
@@ -400,6 +400,7 @@
         dirty, frozen, simMs,
         refreshRateHz: screenRefreshRate,
         responseTimeMs: screenResponseTime,
+        antiAlias: screenAntiAlias,
       }, drawScreenLayer);
     }
 
