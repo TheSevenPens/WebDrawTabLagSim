@@ -6,7 +6,9 @@ const STORAGE_KEY = 'lag-viz-presets';
 export const PRESET_FORMAT_VERSION = 1;
 
 export const MAX_PRESETS = 100;
+/** Longest name accepted when typing (save/rename) and when importing. */
 export const MAX_NAME_LENGTH = 60;
+export const MAX_IMPORT_NAME_LENGTH = 200;
 export const MAX_IMPORT_BYTES = 1024 * 1024;
 
 /** Error whose message is safe to show to the user. */
@@ -28,8 +30,11 @@ function getStorage() {
   }
 }
 
+// Names are never truncated: distinct names (including legacy long ones) must
+// stay distinct. Typed and imported names are trimmed and length-checked;
+// names already in storage are kept exactly as stored.
 function cleanName(name) {
-  return typeof name === 'string' ? name.trim().slice(0, MAX_NAME_LENGTH) : '';
+  return typeof name === 'string' ? name.trim() : '';
 }
 
 /**
@@ -38,7 +43,7 @@ function cleanName(name) {
  * sanitized; duplicate names keep the last occurrence.
  * @returns {{ presets: {name, data}[], skipped: number, adjusted: number }}
  */
-function normalizePresets(raw) {
+function normalizePresets(raw, { fromImport = false } = {}) {
   const list = Array.isArray(raw) ? raw
     : (raw && typeof raw === 'object' && Array.isArray(raw.presets)) ? raw.presets
     : null;
@@ -49,9 +54,12 @@ function normalizePresets(raw) {
   let adjusted = 0;
 
   for (const item of list) {
-    const name = cleanName(item?.name);
+    const rawName = item?.name;
+    const name = fromImport ? cleanName(rawName) : rawName;
     const data = item?.data;
-    if (!name || data === null || typeof data !== 'object' || Array.isArray(data)) {
+    const nameOk = typeof name === 'string' && name.trim() !== ''
+      && (!fromImport || name.length <= MAX_IMPORT_NAME_LENGTH);
+    if (!nameOk || data === null || typeof data !== 'object' || Array.isArray(data)) {
       skipped++;
       continue;
     }
@@ -103,6 +111,9 @@ export function savePreset(name, data) {
   if (idx >= 0) {
     presets[idx].data = settings;
   } else {
+    if (clean.length > MAX_NAME_LENGTH) {
+      throw new PresetError(`Preset names can be at most ${MAX_NAME_LENGTH} characters.`);
+    }
     if (presets.length >= MAX_PRESETS) {
       throw new PresetError(`Preset limit reached (${MAX_PRESETS}). Delete one first.`);
     }
@@ -116,10 +127,10 @@ export function deletePreset(name) {
   writeStore(readStore().filter(p => p.name !== name));
 }
 
-/** Rename a preset. Returns false if the new name is empty or already exists. */
+/** Rename a preset. Returns false if the new name is empty, too long, or already exists. */
 export function renamePreset(oldName, newName) {
   const clean = cleanName(newName);
-  if (!clean) return false;
+  if (!clean || clean.length > MAX_NAME_LENGTH) return false;
   const presets = readStore();
   if (presets.some(p => p.name === clean)) return false;
   const preset = presets.find(p => p.name === oldName);
@@ -151,7 +162,7 @@ export function importPresets(jsonString) {
     throw new PresetError('File is not valid JSON.');
   }
 
-  const incoming = normalizePresets(parsed);
+  const incoming = normalizePresets(parsed, { fromImport: true });
   const presets = readStore();
   let imported = 0;
   let skipped = incoming.skipped;

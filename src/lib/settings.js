@@ -7,7 +7,7 @@
  * entry here.
  *
  * Specs:
- *   number  — { type: 'number', default, min, max, step }  (integer-stepped values are rounded)
+ *   number  — { type: 'number', default, min, max, step }  (values snap to the min + n*step grid, like a range input)
  *   boolean — { type: 'boolean', default }
  *   enum    — { type: 'enum', default, options: [{ value, label }] }
  */
@@ -87,6 +87,27 @@ export const DEFAULT_SETTINGS = Object.freeze(
   Object.fromEntries(SETTING_KEYS.map(k => [k, SETTINGS[k].default]))
 );
 
+function decimalPlaces(n) {
+  return (String(n).split('.')[1] || '').length;
+}
+
+/**
+ * Clamp a number into range and snap it to the step grid anchored at `min`,
+ * the same grid an <input type="range"> uses, so imported values always agree
+ * with the slider that displays them.
+ */
+export function snapToStep(spec, raw) {
+  const clamp = (n) => Math.min(spec.max, Math.max(spec.min, n));
+  let v = clamp(raw);
+  if (spec.step > 0) {
+    v = spec.min + Math.round((v - spec.min) / spec.step) * spec.step;
+    // Strip floating-point noise such as 0.5 + 3 * 0.1
+    v = Number(v.toFixed(Math.max(decimalPlaces(spec.step), decimalPlaces(spec.min))));
+    v = clamp(v);
+  }
+  return v;
+}
+
 /**
  * Validate one value against its spec.
  * @returns {{ value: *, status: 'ok' | 'adjusted' | 'invalid' }}
@@ -99,8 +120,7 @@ function checkValue(spec, raw) {
       if (typeof raw !== 'number' || !Number.isFinite(raw)) {
         return { value: spec.default, status: 'invalid' };
       }
-      let v = Math.min(spec.max, Math.max(spec.min, raw));
-      if (Number.isInteger(spec.step)) v = Math.round(v);
+      const v = snapToStep(spec, raw);
       return { value: v, status: v === raw ? 'ok' : 'adjusted' };
     }
     case 'boolean':

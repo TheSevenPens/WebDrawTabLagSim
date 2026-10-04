@@ -85,6 +85,22 @@ export function consumeRefreshes(screen, dtMs, refreshRateHz) {
 }
 
 /**
+ * Decide what the screen layer does this frame.
+ *  - dirty (new, reset or resized screen, or a visual edit while frozen):
+ *    redraw and snap to the target instead of fading in
+ *  - frozen otherwise: leave the layer untouched, so held pixels and
+ *    response-time ghosts are preserved
+ *  - running: redraw once if any simulated refreshes are due, blending for
+ *    all of them
+ * @returns {{ redraw: boolean, blendMs: number }}
+ */
+export function planScreenUpdate(screen, { dirty, frozen, dtMs, refreshRateHz }) {
+  const count = frozen ? 0 : consumeRefreshes(screen, dtMs, refreshRateHz);
+  if (dirty) return { redraw: true, blendMs: Infinity };
+  return { redraw: count > 0, blendMs: count * 1000 / refreshRateHz };
+}
+
+/**
  * Blend the current screen canvas frame into the persistent color buffer.
  * Models LCD pixel response time — slow response = ghosting.
  */

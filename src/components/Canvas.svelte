@@ -11,7 +11,7 @@
     drawPointer, drawCrosshair, drawPen,
   } from '$lib/drawing.js';
   import {
-    createScreen, resizeScreen, consumeRefreshes,
+    createScreen, resizeScreen, planScreenUpdate,
     commitFrame, renderScreenToMain,
   } from '$lib/screen.js';
 
@@ -269,6 +269,15 @@
     }
   });
 
+  // While frozen the screen layer isn't redrawn, so explicit visual edits must invalidate it
+  $effect(() => {
+    const _visual = [
+      showBrushStroke, showPointer, pointerStyle, pointerSize,
+      brushSize, smoothStroke, screenAntiAlias,
+    ];
+    if (mounted && untrack(() => frozen)) screenDirty = true;
+  });
+
   // Manage screen lifecycle reactively
   $effect(() => {
     const _sm = screenMode;
@@ -354,14 +363,14 @@
       if (screenMode && screen) {
         // === SCREEN MODE ===
 
-        // How many simulated screen refreshes elapsed this frame (can exceed 1
-        // when the screen's refresh rate is above the host frame rate)
-        let refreshes = frozen ? 0 : consumeRefreshes(screen, dt, screenRefreshRate);
-        // While frozen nothing evolves, so redraw the held state every frame
-        const forced = screenDirty || frozen;
+        // Redraw when simulated refreshes are due, or when the layer is dirty
+        // (new/resized, or edited while frozen). A plain freeze leaves it as is.
+        const plan = planScreenUpdate(screen, {
+          dirty: screenDirty, frozen, dtMs: dt, refreshRateHz: screenRefreshRate,
+        });
         screenDirty = false;
 
-        if (forced || refreshes > 0) {
+        if (plan.redraw) {
           // Clear screen canvas to transparent (so tracks show through)
           screen.ctx.clearRect(0, 0, screen.width, screen.height);
 
@@ -379,10 +388,8 @@
 
           screen.ctx.restore();
 
-          // Apply response time blending (ghosting)
-          // A forced redraw (new/resized screen) snaps to the target instead of fading in
-          commitFrame(screen, screenResponseTime,
-            forced ? Infinity : refreshes * 1000 / screenRefreshRate);
+          // Apply response time blending (ghosting); an infinite interval snaps to the target
+          commitFrame(screen, screenResponseTime, plan.blendMs);
         }
 
         // Composite screen layer onto main canvas (every frame — LCD hold behavior)

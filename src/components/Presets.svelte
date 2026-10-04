@@ -1,7 +1,7 @@
 <script>
   import {
     loadPresetList, savePreset, deletePreset,
-    renamePreset, exportPresets, importPresets, PresetError,
+    renamePreset, exportPresets, importPresets, PresetError, MAX_NAME_LENGTH,
   } from '$lib/presets.js';
 
   let { getCurrentSettings, onLoadPreset } = $props();
@@ -64,7 +64,7 @@
       let ok = false;
       attempt(() => { ok = renamePreset(oldName, newName); });
       if (!ok) {
-        message = { text: 'Could not rename: that name is empty or already used.', error: true };
+        message = { text: 'Could not rename: that name is empty, too long, or already used.', error: true };
         editingIdx = -1;
         return;
       }
@@ -124,6 +124,7 @@
     <input
       type="text"
       placeholder="Preset name"
+      maxlength={MAX_NAME_LENGTH}
       bind:value={saveName}
       onkeydown={(e) => e.key === 'Enter' && handleSave()}
     >
@@ -138,6 +139,7 @@
             <input
               type="text"
               class="rename-input"
+              maxlength={MAX_NAME_LENGTH}
               bind:value={editName}
               onkeydown={(e) => handleKeydown(e, preset.name)}
               onblur={() => commitRename(preset.name)}

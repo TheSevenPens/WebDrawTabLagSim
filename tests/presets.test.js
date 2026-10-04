@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   setStorage, loadPresetList, savePreset, deletePreset, renamePreset,
   exportPresets, importPresets, PresetError, MAX_PRESETS, MAX_IMPORT_BYTES,
+  MAX_NAME_LENGTH, MAX_IMPORT_NAME_LENGTH,
 } from '../src/lib/presets.js';
 import { DEFAULT_SETTINGS } from '../src/lib/settings.js';
 
@@ -104,4 +105,38 @@ test('export output imports back identically', () => {
   setStorage(memoryStorage());
   importPresets(out);
   assert.equal(loadPresetList()[0].data.brushSize, 9);
+});
+
+test('distinct long legacy names stay distinct through load and a later save', () => {
+  const a = 'x'.repeat(60) + 'A';
+  const b = 'x'.repeat(60) + 'B';
+  setStorage(memoryStorage({ [KEY]: JSON.stringify([{ name: a, data: {} }, { name: b, data: {} }]) }));
+  assert.deepEqual(loadPresetList().map(p => p.name), [a, b]);
+  savePreset('unrelated', DEFAULT_SETTINGS);
+  assert.deepEqual(loadPresetList().map(p => p.name), [a, b, 'unrelated']);
+});
+
+test('names are never truncated: overly long typed or imported names are refused', () => {
+  const long = 'y'.repeat(MAX_NAME_LENGTH + 1);
+  assert.throws(() => savePreset(long, DEFAULT_SETTINGS), PresetError);
+  savePreset('keep', DEFAULT_SETTINGS);
+  assert.equal(renamePreset('keep', long), false);
+  assert.equal(loadPresetList()[0].name, 'keep');
+
+  const tooLong = 'z'.repeat(MAX_IMPORT_NAME_LENGTH + 1);
+  const res = importPresets(JSON.stringify([
+    { name: tooLong, data: {} },
+    { name: 'w'.repeat(MAX_IMPORT_NAME_LENGTH), data: {} },
+  ]));
+  assert.deepEqual([res.imported, res.skipped], [1, 1]);
+  assert.ok(loadPresetList().some(p => p.name.length === MAX_IMPORT_NAME_LENGTH));
+});
+
+test('an existing long legacy preset can still be overwritten by exact name', () => {
+  const name = 'q'.repeat(80);
+  setStorage(memoryStorage({ [KEY]: JSON.stringify([{ name, data: {} }]) }));
+  savePreset(name, { ...DEFAULT_SETTINGS, brushSize: 12 });
+  const list = loadPresetList();
+  assert.equal(list.length, 1);
+  assert.equal(list[0].data.brushSize, 12);
 });
