@@ -20,10 +20,12 @@ The **brush stroke** is the painted mark trailing behind point c, simulating wha
 
 The top panel contains the title and playback controls:
 
-- **Play/Pause** — freezes the entire visualization. Everything stops completely: pen, pointer, brush, all animation. Click again to resume.
+- **Play/Pause** — pauses the whole simulation. Everything stops completely: pen, pointer, brush, display, all animation. Click again to resume.
 - **Stop Pen/Resume Pen** — stops only the pen tip (a) from moving. Points b and c continue to catch up naturally to a's last position. Click again to resume pen movement.
-- **Restart** — clears all history and restarts the animation from the beginning.
-- **Reset All** — restores all settings to their default values and restarts.
+- **Restart** — clears all history and restarts the animation from the beginning. Your settings and the Pause/Stop Pen state are kept, so restarting while paused shows a fresh frame and stays paused.
+- **Reset All** — restores all settings to their default values and restarts. Like Restart, it does not change Pause or Stop Pen.
+
+Settings take effect immediately as you change them, without clearing the trail. The simulation only restarts when you press Restart or Reset All, load a preset, change the path or aspect ratio, resize the canvas, or enter or leave fullscreen or the pop-out window.
 
 ### Side Panel (left of animation)
 
@@ -35,7 +37,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 
 **TABLET section**
 - **Latency** (0–80) — pure time delay in ticks of 1/60 s (16.7 ms), so it is the same on any display. Higher values push b further behind a along the path.
-- **Smoothing** (0–80) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
+- **Smoothing** (0–50) — exponential moving average (EMA) filter strength. At 0, b follows a's exact path (just delayed). Higher values make b's path smoother but more "cut-corner" — it traces a tighter, smaller version of a's path. When smoothing > 0, a separate red track appears showing b's actual trajectory.
 - **Report Rate (Hz)** (1–60) — simulates the tablet's hardware update frequency. At 60 Hz, b updates every tick (1/60 s). At lower rates (try 2–5 Hz), b visibly "jumps" between positions, showing the stepping effect of low-frequency tablets.
 
 **OS POINTER section** — checkbox in the header toggles visibility of the OS pointer and all its overlays (label, track, circle for point b).
@@ -44,7 +46,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 
 **BRUSH section** — checkbox in the header toggles visibility of the brush stroke and all its overlays (label, track, circle for point c).
 - **Latency** (0–80) — time delay from b to c, same concept as pointer latency.
-- **Smoothing** (0–80) — EMA filter for the brush engine. When > 0, a green track appears showing c's smoothed trajectory.
+- **Smoothing** (0–50) — EMA filter for the brush engine. When > 0, a green track appears showing c's smoothed trajectory.
 - **Size** (1–30) — size of the brush stroke. Default is 4.
 - **Spacing** (0–50) — minimum pixel distance c must travel before a new stroke segment is rendered. At 0 (default), rendering is continuous. Higher values create a segmented stroke that reveals how real brush engines sample at intervals. Try values of 20–40 to see the effect clearly.
 - **Trail Length** (5–300) — how many sample points the stroke retains. Reduce this if the stroke loops back into itself at high spacing values.

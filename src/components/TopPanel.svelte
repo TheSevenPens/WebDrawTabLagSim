@@ -1,12 +1,12 @@
 <script>
-  let { onRestart, onResetAll, paused = $bindable(), frozen = $bindable() } = $props();
+  let { onRestart, onResetAll, penStopped = $bindable(), simPaused = $bindable() } = $props();
 </script>
 
 <div class="top-bar">
   <h1>Drawing Tablet Lag Simulator</h1>
   <div class="top-buttons">
-    <button class="fixed-btn" onclick={() => frozen = !frozen}>{frozen ? '▶ Play' : '⏸ Pause'}</button>
-    <button class="fixed-btn" onclick={() => paused = !paused}>{paused ? '▶ Resume Pen' : '✋ Stop Pen'}</button>
+    <button class="fixed-btn" onclick={() => simPaused = !simPaused}>{simPaused ? '▶ Play' : '⏸ Pause'}</button>
+    <button class="fixed-btn" onclick={() => penStopped = !penStopped}>{penStopped ? '▶ Resume Pen' : '✋ Stop Pen'}</button>
     <button onclick={onRestart}>Restart</button>
     <button onclick={onResetAll}>Reset All</button>
   </div>

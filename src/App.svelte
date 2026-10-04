@@ -8,8 +8,8 @@
   let settings = $state({ ...DEFAULT_SETTINGS });
 
   // Playback
-  let paused = $state(false);
-  let frozen = $state(false);
+  let penStopped = $state(false);
+  let simPaused = $state(false);
 
   // Restart key — incrementing forces Canvas to re-mount
   let restartKey = $state(0);
@@ -43,12 +43,12 @@
   }
 </script>
 
-<TopPanel onRestart={restartAnimation} onResetAll={resetAll} bind:paused bind:frozen />
+<TopPanel onRestart={restartAnimation} onResetAll={resetAll} bind:penStopped bind:simPaused />
 
 <main class="main-row">
   <SidePanel bind:settings {getCurrentSettings} onLoadPreset={loadPreset} />
   {#key restartKey}
-    <Canvas {...settings} {paused} {frozen} />
+    <Canvas {...settings} {penStopped} {simPaused} />
   {/key}
 </main>
 

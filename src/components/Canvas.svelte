@@ -40,8 +40,8 @@
     showPixelGrid,
     screenAntiAlias,
     aspectRatio,
-    paused,
-    frozen,
+    penStopped,
+    simPaused,
   } = $props();
 
   let areaEl;
@@ -59,7 +59,7 @@
   let animFrame;
   let mounted = false;
   let lastFrameTime = null;
-  // Most recent logical positions, kept so a frame can be drawn while frozen
+  // Most recent logical positions, kept so a frame can be drawn while the simulation is paused
   let current = null;
   // Set when the screen layer needs an immediate (non-blended) redraw
   let screenDirty = true;
@@ -94,8 +94,8 @@
           + `The circles and labels mark the ideal positions; the blocky pointer and stroke show what the simulated screen displays, which can lag behind them.`,
       );
     }
-    if (frozen) parts.push('The simulation is paused.');
-    else if (paused) parts.push('The pen is stopped.');
+    if (simPaused) parts.push('The simulation is paused.');
+    else if (penStopped) parts.push('The pen is stopped.');
     return parts.join(' ');
   });
 
@@ -306,13 +306,13 @@
     }
   });
 
-  // While frozen the screen layer isn't redrawn, so explicit visual edits must invalidate it
+  // While the simulation is paused the screen layer isn't redrawn, so explicit visual edits must invalidate it
   $effect(() => {
     const _visual = [
       showBrushStroke, showPointer, pointerStyle, pointerSize,
       brushSize, smoothStroke, screenAntiAlias,
     ];
-    if (mounted && untrack(() => frozen)) screenDirty = true;
+    if (mounted && untrack(() => simPaused)) screenDirty = true;
   });
 
   // Manage screen lifecycle reactively
@@ -399,7 +399,7 @@
       const dirty = screenDirty;
       screenDirty = false;
       advanceScreen(screen, {
-        dirty, frozen, simMs,
+        dirty, simPaused, simMs,
         refreshRateHz: screenRefreshRate,
         responseTimeMs: screenResponseTime,
         antiAlias: screenAntiAlias,
@@ -407,7 +407,7 @@
     }
 
     function render(timestamp) {
-      if (frozen) {
+      if (simPaused) {
         // Time is stopped, but keep drawing so the canvas never goes blank
         // after a restart or resize. Reset the clock so resuming doesn't see
         // one huge frame gap.
@@ -424,13 +424,13 @@
           penSpeed, pathType, reportRate, brushSpacing, brushTrailLength,
         };
         for (let i = 0; i < ticks; i++) {
-          current = sim.step(logicalW, logicalH, params, { penMoving: !paused });
+          current = sim.step(logicalW, logicalH, params, { penMoving: !penStopped });
           // The screen sees every tick's state, so ghosting does not depend on how
           // ticks are grouped into host frames
           updateScreenLayer(TICK_MS);
         }
       }
-      // New, resized or edited-while-frozen layers redraw even when no tick ran
+      // New, resized or edited-while-paused layers redraw even when no tick ran
       updateScreenLayer(0);
 
       const dpr = window.devicePixelRatio || 1;

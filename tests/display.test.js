@@ -52,7 +52,7 @@ function runHost(fps, totalTicks, { refreshRateHz, responseTimeMs }) {
   const update = (simMs) => {
     const d = dirty;
     dirty = false;
-    advanceScreen(screen, { dirty: d, frozen: false, simMs, refreshRateHz, responseTimeMs }, draw);
+    advanceScreen(screen, { dirty: d, simPaused: false, simMs, refreshRateHz, responseTimeMs }, draw);
   };
 
   while (done < totalTicks) {

@@ -73,16 +73,16 @@ export function consumeRefreshes(screen, dtMs, refreshRateHz) {
 
 /**
  * Decide what the screen layer does this frame.
- *  - dirty (new, reset or resized screen, or a visual edit while frozen):
+ *  - dirty (new, reset or resized screen, or a visual edit while the simulation is paused):
  *    redraw and snap to the target instead of fading in
- *  - frozen otherwise: leave the layer untouched, so held pixels and
+ *  - paused otherwise: leave the layer untouched, so held pixels and
  *    response-time ghosts are preserved
  *  - running: redraw once if any simulated refreshes are due, blending for
  *    all of them
  * @returns {{ redraw: boolean, blendMs: number }}
  */
-export function planScreenUpdate(screen, { dirty, frozen, dtMs, refreshRateHz }) {
-  const count = frozen ? 0 : consumeRefreshes(screen, dtMs, refreshRateHz);
+export function planScreenUpdate(screen, { dirty, simPaused, dtMs, refreshRateHz }) {
+  const count = simPaused ? 0 : consumeRefreshes(screen, dtMs, refreshRateHz);
   if (dirty) return { redraw: true, blendMs: Infinity };
   return { redraw: count > 0, blendMs: count * 1000 / refreshRateHz };
 }
@@ -162,7 +162,7 @@ function aliasFrame(screen, draw) {
  * still happens once per host frame.
  *
  * @param {object} screen - from createScreen()
- * @param {object} opts - { dirty, frozen, simMs, refreshRateHz, responseTimeMs, antiAlias }
+ * @param {object} opts - { dirty, simPaused, simMs, refreshRateHz, responseTimeMs, antiAlias }
  * @param {(ctx: CanvasRenderingContext2D, mode: { coverage: boolean }) => void} draw -
  *   draws this tick's pointer/stroke. With anti-aliasing off it is called a second time
  *   with `mode.coverage` true and should draw the same geometry (it may use
@@ -171,10 +171,10 @@ function aliasFrame(screen, draw) {
  */
 export function advanceScreen(
   screen,
-  { dirty, frozen, simMs, refreshRateHz, responseTimeMs, antiAlias = true },
+  { dirty, simPaused, simMs, refreshRateHz, responseTimeMs, antiAlias = true },
   draw,
 ) {
-  const plan = planScreenUpdate(screen, { dirty, frozen, dtMs: simMs, refreshRateHz });
+  const plan = planScreenUpdate(screen, { dirty, simPaused, dtMs: simMs, refreshRateHz });
   if (!plan.redraw) return false;
 
   // Clear to transparent (so tracks show through), then draw at screen resolution
