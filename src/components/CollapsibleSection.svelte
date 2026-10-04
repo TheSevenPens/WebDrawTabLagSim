@@ -1,4 +1,12 @@
 <script>
+  /**
+   * @type {{
+   *   title: string,
+   *   open?: boolean,
+   *   children: import('svelte').Snippet,
+   *   headerExtra?: import('svelte').Snippet,
+   * }}
+   */
   let { title, open = true, children, headerExtra } = $props();
   // `open` only seeds the initial state; later changes to the prop are not tracked
   // svelte-ignore state_referenced_locally

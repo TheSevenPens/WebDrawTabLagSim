@@ -1,4 +1,5 @@
 <script>
+  /** @type {{ label: string, min?: number, max?: number, step?: number, value: number }} */
   let { label, min = 0, max = 100, step = 1, value = $bindable() } = $props();
   const id = $props.id();
 </script>

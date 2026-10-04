@@ -14,6 +14,7 @@
     renderScreenToMain,
   } from '$lib/screen.js';
 
+  /** @type {import('$lib/settings.js').Settings & { penStopped: boolean, simPaused: boolean }} */
   let {
     pointerLatency,
     pointerSmoothing,
@@ -61,13 +62,17 @@
   const RATE_READOUT_INTERVAL_MS = 250;
   let rateText = $state('');
   let lastRateUpdate = -Infinity;
+  /** @type {import('$lib/types.js').Position[]} */
   let trackA = [];
+  /** @type {import('$lib/types.js').Position[]} */
   let trackB = [];
+  /** @type {import('$lib/types.js').Position[]} */
   let trackC = [];
   let animFrame;
   let mounted = false;
   let lastFrameTime = null;
   // Most recent logical positions, kept so a frame can be drawn while the simulation is paused
+  /** @type {import('$lib/types.js').SimSnapshot | null} */
   let current = null;
   // Set when the screen layer needs an immediate (non-blended) redraw
   let screenDirty = true;
@@ -112,6 +117,7 @@
   let logicalH = 0;
 
   // Screen simulation state
+  /** @type {import('$lib/types.js').ScreenState | null} */
   let screen = null;
 
   // Full-size canvas height. Narrower areas scale down, keeping the aspect ratio.

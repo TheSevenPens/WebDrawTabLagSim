@@ -1,4 +1,5 @@
 <script>
+  /** @type {{ onRestart: () => void, onResetAll: () => void, penStopped: boolean, simPaused: boolean }} */
   let { onRestart, onResetAll, penStopped = $bindable(), simPaused = $bindable() } = $props();
 </script>
 

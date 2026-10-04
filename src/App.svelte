@@ -37,6 +37,7 @@
   }
 
   // Preset data is validated on read; sanitizing again keeps this safe for any caller
+  /** @param {unknown} data */
   function loadPreset(data) {
     Object.assign(settings, sanitizeSettings(data).settings);
     restartKey++;

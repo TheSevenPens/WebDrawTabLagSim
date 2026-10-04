@@ -69,10 +69,7 @@ function delayed(buffer, ticks, fallback) {
 /**
  * Create an independent simulation instance.
  *
- * @returns {{
- *   brushTrail: object[], current: object|null, time: number, reportCount: number,
- *   reset: Function, step: Function, warmUp: Function,
- * }}
+ * @returns {import('./types.js').Simulation}
  *   `brushTrail` and `current` ({ posA, posB, posC }) are live views of this
  *   instance's state. Treat them as read-only.
  */
@@ -88,6 +85,7 @@ export function createSimulation() {
   let lastReportedB = null;
   let reportCount = 0;
 
+  /** @type {import('./types.js').Simulation} */
   const sim = {
     brushTrail,
     current: null,
@@ -113,12 +111,11 @@ export function createSimulation() {
      *
      * @param {number} W - canvas width
      * @param {number} H - canvas height
-     * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
+     * @param {import('./types.js').SimParams} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing,
      *   penSpeed, pathType, reportRate, brushSpacing, brushTrailLength }
-     * @param {object} [opts]
-     * @param {boolean} [opts.penMoving=true] - false holds the pen still while the
-     *   filters keep running (so B and C converge onto A)
-     * @returns {{ posA: object, posB: object, posC: object }}
+     * @param {{ penMoving?: boolean }} [opts] - `penMoving` (default true): false holds the
+     *   pen still while the filters keep running (so B and C converge onto A)
+     * @returns {import('./types.js').SimSnapshot}
      */
     step(W, H, params, { penMoving = true } = {}) {
       // --- A: pen tip ---
@@ -178,12 +175,12 @@ export function createSimulation() {
 
     /**
      * Pre-warm: reset, then run HISTORY_SIZE ticks so histories and trail are populated.
-     * @returns {{ posA: object, posB: object, posC: object }} final positions
+     * @returns {import('./types.js').SimSnapshot} final positions
      */
     warmUp(W, H, params) {
       sim.reset();
       for (let i = 0; i < HISTORY_SIZE; i++) sim.step(W, H, params);
-      return sim.current;
+      return /** @type {import('./types.js').SimSnapshot} */ (sim.current);
     },
   };
 

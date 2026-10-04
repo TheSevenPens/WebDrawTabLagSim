@@ -56,9 +56,9 @@ export function warmupTicks(params, steps) {
 /**
  * @param {number} W - canvas width
  * @param {number} H - canvas height
- * @param {object} params - { penSpeed, pathType, pointerLatency, pointerSmoothing,
- *   brushLatency, brushSmoothing, reportRate }
- * @returns {{ trackA: object[], trackB: object[], trackC: object[] }} one period each
+ * @param {import('./types.js').ReferenceParams} params - { penSpeed, pathType, pointerLatency,
+ *   pointerSmoothing, brushLatency, brushSmoothing, reportRate }
+ * @returns {import('./types.js').ReferenceTracks} one period each
  */
 export function computeReferenceTracks(W, H, params) {
   const steps = periodTicks(params.penSpeed, params.pathType);

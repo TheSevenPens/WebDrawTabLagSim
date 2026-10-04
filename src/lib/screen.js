@@ -22,7 +22,7 @@ export function createColorBuffer(width, height) {
  * Create a simulated screen state object.
  * @param {number} width - Screen width in simulated pixels
  * @param {number} height - Screen height in simulated pixels
- * @returns {object} Screen state
+ * @returns {import('./types.js').ScreenState} Screen state
  */
 export function createScreen(width, height) {
   const canvas = document.createElement('canvas');
@@ -44,6 +44,11 @@ export function createScreen(width, height) {
 /**
  * Resize the screen when resolution changes.
  */
+/**
+ * @param {import('./types.js').ScreenState} screen
+ * @param {number} width
+ * @param {number} height
+ */
 export function resizeScreen(screen, width, height) {
   screen.width = width;
   screen.height = height;
@@ -60,6 +65,9 @@ export function resizeScreen(screen, width, height) {
  * Several can be due when the simulated refresh rate exceeds the host frame
  * rate; the caller redraws once and blends for `count * interval` ms, which is
  * equivalent to blending `count` times toward the same target.
+ * @param {{ refreshAccum: number }} screen
+ * @param {number} dtMs - simulated milliseconds since the last call
+ * @param {number} refreshRateHz
  * @returns {number} Number of refreshes due (0 if none)
  */
 export function consumeRefreshes(screen, dtMs, refreshRateHz) {
@@ -79,6 +87,8 @@ export function consumeRefreshes(screen, dtMs, refreshRateHz) {
  *    response-time ghosts are preserved
  *  - running: redraw once if any simulated refreshes are due, blending for
  *    all of them
+ * @param {{ refreshAccum: number }} screen
+ * @param {{ dirty: boolean, simPaused: boolean, dtMs: number, refreshRateHz: number }} state
  * @returns {{ redraw: boolean, blendMs: number }}
  */
 export function planScreenUpdate(screen, { dirty, simPaused, dtMs, refreshRateHz }) {
@@ -161,9 +171,9 @@ function aliasFrame(screen, draw) {
  * running none) cannot change the result. Compositing onto the main canvas
  * still happens once per host frame.
  *
- * @param {object} screen - from createScreen()
- * @param {object} opts - { dirty, simPaused, simMs, refreshRateHz, responseTimeMs, antiAlias }
- * @param {(ctx: CanvasRenderingContext2D, mode: { coverage: boolean }) => void} draw -
+ * @param {import('./types.js').ScreenState} screen - from createScreen()
+ * @param {import('./types.js').AdvanceScreenOptions} opts
+ * @param {(ctx: CanvasRenderingContext2D, mode: import('./types.js').ScreenDrawMode) => void} draw -
  *   draws this tick's pointer/stroke. With anti-aliasing off it is called a second time
  *   with `mode.coverage` true and should draw the same geometry (it may use
  *   opaqueContext() to drop the content's own transparency)
@@ -194,7 +204,7 @@ export function advanceScreen(
  * Blending is done on premultiplied color, so a fading pixel keeps its hue and
  * loses only opacity.
  *
- * @param {object} screen
+ * @param {import('./types.js').ScreenState} screen
  * @param {number} responseTimeMs - pixel response time constant
  * @param {number} dtMs - simulated time to blend over (Infinity snaps to the target)
  */

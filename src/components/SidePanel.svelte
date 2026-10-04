@@ -7,6 +7,13 @@
 
   const uid = $props.id();
 
+  /**
+   * @type {{
+   *   settings: import('$lib/settings.js').Settings,
+   *   getCurrentSettings: () => import('$lib/settings.js').Settings,
+   *   onLoadPreset: (data: unknown) => void,
+   * }}
+   */
   let {
     settings = $bindable(),
     // Actions
@@ -15,6 +22,7 @@
   } = $props();
 
   // min/max/step for a numeric setting
+  /** @param {import('$lib/settings.js').NumberSettingKey} key */
   const range = (key) => {
     const { min, max, step } = SETTINGS[key];
     return { min, max, step };
