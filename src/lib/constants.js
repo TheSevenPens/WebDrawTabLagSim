@@ -18,6 +18,11 @@ export const HISTORY_SIZE = 400;
 export const BRUSH_TRAIL_MAX = 180;
 export const TIME_STEP_SCALE = 0.001;
 
+// Simulation clock: the pipeline advances in fixed ticks of simulated time,
+// independent of the host display's frame rate. Latency settings are in ticks.
+export const TICKS_PER_SECOND = 60;
+export const TICK_MS = 1000 / TICKS_PER_SECOND;
+
 export const LABEL_OFFSETS = {
   a: { dx: -22, dy: 24, size: 22 },
   b: { dx: 0, dy: 34, size: 22 },

@@ -5,7 +5,7 @@ import { SETTINGS } from './settings.js';
 const MIN_PEN_SPEED = SETTINGS.penSpeed.min;
 const MAX_TRACK_STEPS = 100000;
 
-function safePenSpeed(penSpeed) {
+export function safePenSpeed(penSpeed) {
   return Number.isFinite(penSpeed) && penSpeed > 0 ? penSpeed : MIN_PEN_SPEED;
 }
 
@@ -103,59 +103,9 @@ export function autoPosition(t, canvasWidth, canvasHeight, pathType = 'lissajous
 }
 
 /**
- * Compute how many simulation steps make up one full period at the given pen speed.
+ * Number of simulation ticks that make up one full period of the path at the given pen speed.
  */
-function stepsPerPeriod(penSpeed, pathType = 'lissajous') {
+export function periodTicks(penSpeed, pathType = 'lissajous') {
   const steps = Math.round(pathPeriod(pathType) / (safePenSpeed(penSpeed) * TIME_STEP_SCALE));
   return Math.min(MAX_TRACK_STEPS, Math.max(1, steps));
-}
-
-/**
- * Pre-compute A's track as a closed loop, sampled at the same rate as runtime.
- */
-export function computeTrackA(canvasWidth, canvasHeight, penSpeed, pathType = 'lissajous') {
-  const steps = stepsPerPeriod(penSpeed, pathType);
-  const dt = safePenSpeed(penSpeed) * TIME_STEP_SCALE;
-  const points = [];
-  for (let i = 0; i < steps; i++) {
-    points.push(autoPosition(i * dt, canvasWidth, canvasHeight, pathType));
-  }
-  return points;
-}
-
-/**
- * Compute the steady-state track for B (or C) by running the full
- * delay + EMA pipeline over multiple periods and returning the last period.
- */
-export function computeSmoothedTrack(inputTrack, latency, smoothing, warmupPeriods = 5) {
-  const steps = inputTrack.length;
-  if (steps === 0) return [];
-
-  const alpha = 1 / (1 + smoothing);
-  const delaySteps = Math.round(latency);
-  const totalSteps = steps * (warmupPeriods + 1);
-
-  const ema = { x: null, y: null };
-  const lastPeriod = [];
-
-  for (let i = 0; i < totalSteps; i++) {
-    const delayedIdx = i - delaySteps;
-    const input = delayedIdx >= 0
-      ? inputTrack[delayedIdx % steps]
-      : inputTrack[((delayedIdx % steps) + steps) % steps];
-
-    if (ema.x === null) {
-      ema.x = input.x;
-      ema.y = input.y;
-    } else {
-      ema.x = alpha * input.x + (1 - alpha) * ema.x;
-      ema.y = alpha * input.y + (1 - alpha) * ema.y;
-    }
-
-    if (i >= totalSteps - steps) {
-      lastPeriod.push({ x: ema.x, y: ema.y });
-    }
-  }
-
-  return lastPeriod;
 }
