@@ -34,7 +34,7 @@ const px = (screen, x) => Array.from(screen.pixels.slice(x * 4, x * 4 + 4));
 /** Put `rgba` in pixel `x` of the screen canvas, as a draw call would. */
 const paint = (screen, x, rgba) => () => screen.pixels.set(rgba, x * 4);
 
-const OPTS = { frozen: false, simMs: TICK_MS, refreshRateHz: 60, responseTimeMs: 200 };
+const OPTS = { simPaused: false, simMs: TICK_MS, refreshRateHz: 60, responseTimeMs: 200 };
 
 // --- anti-aliasing ---
 

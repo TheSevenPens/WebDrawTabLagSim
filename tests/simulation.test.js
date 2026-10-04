@@ -174,23 +174,23 @@ test('a long background gap is capped, not replayed', () => {
 
 test('pausing an already-rendered screen leaves it untouched', () => {
   const s = { refreshAccum: 0 };
-  const plan = planScreenUpdate(s, { dirty: false, frozen: true, dtMs: 16.7, refreshRateHz: 60 });
+  const plan = planScreenUpdate(s, { dirty: false, simPaused: true, dtMs: 16.7, refreshRateHz: 60 });
   assert.equal(plan.redraw, false);
-  assert.equal(s.refreshAccum, 0); // frozen time must not accumulate either
+  assert.equal(s.refreshAccum, 0); // paused time must not accumulate either
 });
 
-test('a dirty screen redraws and snaps, even while frozen', () => {
-  for (const frozen of [true, false]) {
-    const plan = planScreenUpdate({ refreshAccum: 0 }, { dirty: true, frozen, dtMs: 16.7, refreshRateHz: 60 });
+test('a dirty screen redraws and snaps, even while the simulation is paused', () => {
+  for (const simPaused of [true, false]) {
+    const plan = planScreenUpdate({ refreshAccum: 0 }, { dirty: true, simPaused, dtMs: 16.7, refreshRateHz: 60 });
     assert.deepEqual(plan, { redraw: true, blendMs: Infinity });
   }
 });
 
 test('a running screen redraws only when refreshes are due, blending for all of them', () => {
   const s = { refreshAccum: 0 };
-  const first = planScreenUpdate(s, { dirty: false, frozen: false, dtMs: 5, refreshRateHz: 24 });
+  const first = planScreenUpdate(s, { dirty: false, simPaused: false, dtMs: 5, refreshRateHz: 24 });
   assert.equal(first.redraw, false); // 5ms < 41.7ms interval
-  const fast = planScreenUpdate({ refreshAccum: 0 }, { dirty: false, frozen: false, dtMs: 16.7, refreshRateHz: 144 });
+  const fast = planScreenUpdate({ refreshAccum: 0 }, { dirty: false, simPaused: false, dtMs: 16.7, refreshRateHz: 144 });
   assert.equal(fast.redraw, true);
   assert.ok(Math.abs(fast.blendMs - 2 * 1000 / 144) < 1e-9); // two refreshes due in 16.7ms
 });

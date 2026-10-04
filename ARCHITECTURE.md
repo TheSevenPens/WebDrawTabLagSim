@@ -191,7 +191,7 @@ The pen tip (A) can follow different deterministic paths, selectable via dropdow
 | **Circle** | Simple elliptical orbit |
 | **Star** | Pentagram — pen moves directly between the 5 star points in skip-one order |
 
-All paths share the same period (2π) and are centered on the canvas with configurable amplitude. Circle path speed is normalized (CIRCLE_SPEED = 2.5) to match Lissajous/Star perceived speed. Changing path type auto-restarts the animation.
+Paths are centered on the canvas with configurable amplitude. Lissajous and Star repeat every 2π of path time. The Circle runs at a speed factor (`CIRCLE_SPEED` = 2.5) so it feels as fast as the other two, which means one revolution takes 2π / 2.5 of path time, so it repeats sooner than the others at the same pen speed. `periodTicks(penSpeed, pathType)` gives each path's period in ticks. Changing path type auto-restarts the animation.
 
 ## Timing Model
 
@@ -207,7 +207,7 @@ Each animation frame, `Canvas.svelte` passes the host frame time to `clock.advan
 - **Frame gaps are capped at 250 ms.** A backgrounded tab resumes instead of replaying the gap; the extra time is dropped.
 - **Tick snapping.** A tick runs when the accumulator is within 1 ms of a full tick, so a 60 Hz display with timestamp noise gets exactly one tick per frame instead of an occasional 0 then 2. The long-run tick count is still exact.
 - **Presentation limit.** The state only changes 60 times per second, so a faster display shows each state for more than one frame. It is not interpolated, and the host's real frame rate is a separate limit on what can be seen.
-- **Freezing.** `frozen` stops the clock and resets it on resume. `paused` (Stop Pen) holds the pen still but keeps ticking, so B and C converge onto it.
+- **Pausing.** `simPaused` (Play/Pause) stops the clock and resets it on resume. `penStopped` (Stop Pen) holds only the pen still while the simulation keeps ticking, so B and C converge onto it. The two are independent and have different names on purpose: one pauses *time*, the other stops *the pen*.
 
 `createSimulation()` returns an instance that owns all of its state (histories, filter state, report accumulator, brush trail, pen time). It knows nothing about the DOM, the clock or storage, so any number of instances run independently (the canvas has one; reference tracks use another).
 
@@ -241,7 +241,7 @@ The screen layer is composited onto the main canvas with `imageSmoothingEnabled 
 
 ### Screen Refresh Rate
 
-The screen only updates at the configured refresh rate (10–144 Hz). Between refreshes, the screen holds its last frame (LCD "sample-and-hold" behavior). The screen layer is advanced **once per simulation tick** (`advanceScreen()`, right after the tick, using that tick's state), not once per host frame. Response time therefore integrates the same sequence of states whatever the host frame rate is: a 30 fps host that runs two ticks per frame gives the same pixels as a 60 fps host. Compositing onto the main canvas still happens once per host frame. An accumulator of simulated time counts how many refreshes are due (`consumeRefreshes()`); there can be several when the screen's refresh rate exceeds 60 Hz. `planScreenUpdate()` decides whether the layer redraws: it does when refreshes are due, or when the layer is dirty (new, reset or resized, or edited while frozen). A plain pause leaves the layer untouched, so ghosts are preserved.
+The screen only updates at the configured refresh rate (10–144 Hz). Between refreshes, the screen holds its last frame (LCD "sample-and-hold" behavior). The screen layer is advanced **once per simulation tick** (`advanceScreen()`, right after the tick, using that tick's state), not once per host frame. Response time therefore integrates the same sequence of states whatever the host frame rate is: a 30 fps host that runs two ticks per frame gives the same pixels as a 60 fps host. Compositing onto the main canvas still happens once per host frame. An accumulator of simulated time counts how many refreshes are due (`consumeRefreshes()`); there can be several when the screen's refresh rate exceeds 60 Hz. `planScreenUpdate()` decides whether the layer redraws: it does when refreshes are due, or when the layer is dirty (new, reset or resized, or edited while paused). A plain pause leaves the layer untouched, so ghosts are preserved.
 
 ### Pixel Response Time (Ghosting)
 
@@ -284,37 +284,35 @@ The canvas backing store is sized at `logicalWidth × dpr` by `logicalHeight × 
 
 ## State Management
 
-All mutable state lives in `App.svelte` as Svelte 5 `$state()` runes:
+All mutable state lives in `App.svelte` as Svelte 5 `$state()` runes, in two groups.
+
+**Settings** are one object, `settings`, with a key for every control. Each setting is defined once in `SETTINGS` (`src/lib/settings.js`): its default, its range and step (or its options), and nothing else needs to repeat them. Slider ranges, dropdown options, Reset All, and preset validation all read from that definition. To add a setting, add one entry there, add its control in `SidePanel.svelte`, and read `settings.<name>` where it takes effect (see the README).
+
+**Playback state** is separate from settings and is not saved in presets:
 
 ```
-pointerLatency, pointerSmoothing    — Pointer lag parameters
-brushLatency, brushSmoothing        — Brush lag parameters
-penSpeed                            — Animation speed (0.5–10, step 0.5)
-pathType                            — Path shape: 'lissajous' | 'circle' | 'star'
-brushSize                           — Brush stroke size (1–30, default 4; scale = brushSize / 10)
-brushSpacing                        — Min pixel distance between trail points (0 = continuous)
-brushTrailLength                    — Max trail buffer size (5–300, default 180)
-smoothStroke                        — Enable Catmull-Rom + subdivision rendering
-reportRate                          — Tablet report rate in Hz (1–60)
-showPen                              — Pen visibility (header checkbox in PEN section; hides pen, label, track, circle for A)
-showPointer                          — OS pointer visibility (header checkbox in OS POINTER section; hides pointer, label, track, circle for B)
-showBrushStroke                      — Brush stroke visibility (header checkbox in BRUSH section; hides stroke, label, track, circle for C)
-pointerStyle                        — OS pointer style (mouse/crosshair)
-pointerSize                         — OS pointer scale factor (1, 2, 4, or 8; default 1)
-showLabels                           — Toggle all letter labels (a, b, c)
-showTracks                           — Toggle all track lines
-showCircles                          — Toggle all dotted circles
-aspectRatio                         — Canvas aspect ratio ('16:9', '16:10', '4:3', '1:1'; default '16:9')
-screenMode                          — Enable simulated screen layer
-screenResolution                    — Screen width in simulated pixels (80–320)
-screenRefreshRate                   — Screen refresh rate in Hz (10–144)
-screenResponseTime                  — Pixel response time in ms (1–50)
-showPixelGrid                       — Show grid lines between simulated pixels
-frozen                              — Play/Pause state (true freeze, entire visualization stops)
-paused                              — Stop Pen/Resume Pen state (pen stops, b and c catch up)
+simPaused   — Play/Pause: time stops, the whole visualization holds
+penStopped  — Stop Pen/Resume Pen: only the pen stops; B and C catch up
 ```
 
-State flows down via props. `SidePanel` uses `bind:` for two-way binding. `Canvas` receives read-only props.
+State flows down via props. `SidePanel` takes `bind:settings` and edits it in place; `Canvas` receives the settings spread as read-only props, plus the two playback flags.
+
+### Reset rules
+
+What resets the simulation (histories, filters, trail, then a pre-warm) and what does not:
+
+| Action | Resets the simulation | Playback state (`simPaused`, `penStopped`) | Settings |
+|---|---|---|---|
+| Restart | yes | kept (a paused restart shows a valid, still-paused frame) | kept |
+| Reset All | yes | kept | back to defaults |
+| Load a preset | yes | kept | replaced by the preset (omitted fields take defaults) |
+| Change path type | yes (auto-restart) | kept | the change |
+| Change aspect ratio | yes | kept | the change |
+| Canvas resize, fullscreen, pop-out/in, pixel-ratio change | yes | kept | kept |
+| Any other setting (lag, smoothing, report rate, brush, display, view) | no, applied live | kept | the change |
+| Play/Pause, Stop Pen | no | toggled | kept |
+
+Changing the lag, smoothing or report-rate settings recomputes the reference tracks but does not touch the running simulation, so you can drag a slider and watch the pipeline respond. Settings do not reset when changed, so a slider drag never discards the trail.
 
 ## Module Responsibilities
 
@@ -347,28 +345,28 @@ All canvas drawing primitives: pen, pointer (mouse icon), crosshair (white with 
 Simulated screen buffer management. Creates and manages a low-resolution offscreen canvas with a Float32Array color buffer for response time blending. Key exports: `createScreen(w, h)`, `resizeScreen(screen, w, h)`, `consumeRefreshes(screen, dtMs, hz)`, `planScreenUpdate(screen, opts)`, `advanceScreen(screen, opts, draw)`, `commitFrame(screen, responseMs, dtMs)`, `renderScreenToMain(ctx, screen, W, H, showGrid)`, `drawPixelGrid(ctx, ...)`.
 
 ### `src/components/Canvas.svelte`
-The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and a `requestAnimationFrame` loop that feeds frame times to its own clock and simulation instance. Uses `$effect` to reactively recompute reference tracks when lag/speed/path/report-rate props change. The canvas is at most 600px tall, sized to the space the layout gives it (a `ResizeObserver` on its area, plus pixel-ratio and fullscreen listeners) with the aspect ratio preserved; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `frozen` is true the clock stops and the canvas keeps drawing the held state (true pause). When `paused` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
+The most complex component. Uses `onMount` for canvas setup, HiDPI scaling, double buffering, pre-warm, and a `requestAnimationFrame` loop that feeds frame times to its own clock and simulation instance. Uses `$effect` to reactively recompute reference tracks when lag/speed/path/report-rate props change. The canvas is at most 600px tall, sized to the space the layout gives it (a `ResizeObserver` on its area, plus pixel-ratio and fullscreen listeners) with the aspect ratio preserved; changing aspect ratio triggers a simulation reinit (reset + pre-warm). When `simPaused` is true the clock stops and the canvas keeps drawing the held state (true pause). When `penStopped` is true, pen movement stops but the simulation continues so b and c catch up. When screen mode is enabled, the render loop branches: brush stroke and pointer are drawn to the screen canvas, blended through the response time buffer, then composited onto the main canvas. Full-resolution overlays (pen, labels, circles, tracks) are drawn on top. Fullscreen/resize triggers a reset and pre-warm to prevent erratic brush trail artifacts.
 
 ### `src/lib/presets.js`
-Pure localStorage CRUD for named preset configurations. Storage key: `lag-viz-presets`. Format: `[{ name, data }]` where `data` contains all settings values (including `pointerSize` and `aspectRatio`). Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
+Validated, versioned preset storage. Storage key: `lag-viz-presets`. Format: `{ version: 1, presets: [{ name, data }] }` (older bare-array data still loads) where `data` is a complete settings object. Every preset is sanitized through `sanitizeSettings()` on read, save and import (out-of-range values clamped, wrong types replaced by defaults, numbers snapped to the slider grid), names are never truncated (typed names are limited to 60 characters, imported ones to 200), and imports are capped at 1 MB and 100 presets. Storage is an injectable adapter (`setStorage()`), so the module needs no DOM; reads of corrupt or unavailable storage return an empty list, and writes that fail throw a `PresetError` whose message the UI shows. Key exports: `loadPresetList()`, `savePreset(name, data)`, `deletePreset(name)`, `renamePreset(oldName, newName)`, `exportPresets()`, `importPresets(jsonString)`.
 
 ### `src/components/Presets.svelte`
-Preset management UI component. Provides a save input field, a scrollable preset list (click to load, rename via pencil icon, delete via x button), and export/import buttons. Uses a `children` snippet prop to render inside SidePanel. Calls into `presets.js` for all storage operations.
+Preset management UI component. Provides a save input field, a scrollable preset list (click to load, rename via pencil icon, delete via x button), and export/import buttons, and shows `PresetError` messages and import results (for example "Imported 2 presets (1 skipped, 3 values corrected).") in a status line. Calls into `presets.js` for all storage operations.
 
 ### `src/components/TopPanel.svelte`
-Title bar and playback control buttons: Play/Pause (frozen), Stop Pen/Resume Pen (paused), Restart, and Reset All. Buttons use fixed min-width to prevent layout shift when labels change.
+Title bar and playback control buttons: Play/Pause (`simPaused`), Stop Pen/Resume Pen (`penStopped`), Restart, and Reset All. Buttons use fixed min-width to prevent layout shift when labels change.
 
 ### `src/components/SidePanel.svelte`
 Left side panel containing all controls organized in collapsible sections (via CollapsibleSection). PEN, OS POINTER, and BRUSH sections have header checkboxes that control full visibility of their respective points (hiding the point also hides its label, track, and circle). Sections: PEN (pen speed, path type), TABLET (latency, smoothing, report rate), OS POINTER (pointer style, pointer size), BRUSH (brush latency/smoothing, size/spacing/trail, smooth stroke toggle), VIEW (unified labels/tracks/circles toggles for all points), DISPLAY (aspect ratio, screen mode + sub-options), PRESETS. All sections start collapsed on load. Custom dark-themed styling: dark checkboxes (#4a4a4a unchecked, #7089a8 checked), dark slider track (#4a4a4a) with slate gray thumb (#7089a8), dark dropdowns (#4a4a4a background, #ccc text), thin custom scrollbar (6px, #555) with 12px right padding for clearance.
 
 ### `src/components/CollapsibleSection.svelte`
-Reusable collapsible section wrapper with a clickable header showing a ▼/▶ indicator and a title. Content is shown/hidden based on collapsed state. Supports an optional `headerExtra` snippet slot for placing controls (e.g., checkboxes) in the header row alongside the title.
+Reusable collapsible section wrapper with a clickable header showing a ▼/▶ indicator and a title. The header button exposes `aria-expanded` and `aria-controls`; the body stays in the DOM and is hidden when collapsed. Supports an optional `headerExtra` snippet slot for placing controls (e.g., checkboxes) in the header row alongside the title.
 
 ### `src/components/Slider.svelte`
-Reusable slider: label and value on the same row (label left-aligned, value right-aligned), range track underneath. Custom dark-themed styling. Bindable `value` prop.
+Reusable slider: label and value on the same row (label left-aligned, value right-aligned), range track underneath. The label is associated with the input, the value is an `<output>`, and keyboard focus is visible. Custom dark-themed styling. Bindable `value` prop.
 
 ### `src/App.svelte`
-Root component. Declares all `$state()` runes (including `pointerSize` and `aspectRatio`). Composes `TopPanel`, `SidePanel`, `Canvas`, and `Presets` with `bind:` directives. Provides `getCurrentSettings()` to snapshot all state values into a plain object, and `loadPreset(data)` to restore state from a saved preset object. Both `pointerSize` and `aspectRatio` are included in presets/save/load/reset. `Presets` is mounted as a child of `SidePanel` via the children snippet prop.
+Root component. Declares the `settings` object (initialized from `DEFAULT_SETTINGS`) and the two playback flags. Composes `TopPanel`, `SidePanel` and `Canvas`; `Presets` is mounted inside `SidePanel`. Provides `getCurrentSettings()` to snapshot the settings into a plain object, `loadPreset(data)` to restore them from a preset (sanitized), and `resetAll()`. Each of Restart, Reset All and preset load re-mounts `Canvas` by bumping a key, and none of them touches the playback flags (see Reset rules).
 
 ## Data Flow
 

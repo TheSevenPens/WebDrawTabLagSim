@@ -4,7 +4,7 @@ An interactive visualization of the lag between a pen tip (a), the OS pointer (b
 
 ## Development
 
-Requires Node 22 or newer and [Bun](https://bun.sh) (the version is pinned in `package.json`).
+Requires Node 22.12 or newer (Vite 8 needs it) and [Bun](https://bun.sh) (the version is pinned in `package.json`).
 
 ```sh
 bun install --frozen-lockfile   # install exactly what bun.lock specifies
