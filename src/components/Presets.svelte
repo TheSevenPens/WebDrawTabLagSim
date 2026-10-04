@@ -1,7 +1,7 @@
 <script>
   import {
     loadPresetList, savePreset, deletePreset,
-    renamePreset, exportPresets, importPresets,
+    renamePreset, exportPresets, importPresets, PresetError,
   } from '$lib/presets.js';
 
   let { getCurrentSettings, onLoadPreset } = $props();
@@ -12,15 +12,35 @@
   let editName = $state('');
   let fileInput;
 
+  // Status line under the controls: { text, error }
+  let message = $state(null);
+
   function refresh() {
     presets = loadPresetList();
+  }
+
+  // Run a storage action, showing PresetError messages instead of throwing
+  function attempt(action) {
+    try {
+      action();
+      return true;
+    } catch (err) {
+      message = {
+        text: err instanceof PresetError ? err.message : 'Something went wrong with presets.',
+        error: true,
+      };
+      refresh();
+      return false;
+    }
   }
 
   function handleSave() {
     const name = saveName.trim();
     if (!name) return;
-    savePreset(name, getCurrentSettings());
-    saveName = '';
+    if (attempt(() => savePreset(name, getCurrentSettings()))) {
+      saveName = '';
+      message = null;
+    }
     refresh();
   }
 
@@ -29,7 +49,7 @@
   }
 
   function handleDelete(name) {
-    deletePreset(name);
+    attempt(() => deletePreset(name));
     refresh();
   }
 
@@ -41,8 +61,10 @@
   function commitRename(oldName) {
     const newName = editName.trim();
     if (newName && newName !== oldName) {
-      const ok = renamePreset(oldName, newName);
+      let ok = false;
+      attempt(() => { ok = renamePreset(oldName, newName); });
       if (!ok) {
+        message = { text: 'Could not rename: that name is empty or already used.', error: true };
         editingIdx = -1;
         return;
       }
@@ -71,12 +93,21 @@
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        importPresets(reader.result);
-        refresh();
-      } catch {
-        // invalid JSON — silently ignore
-      }
+      attempt(() => {
+        const { imported, skipped, adjusted } = importPresets(reader.result);
+        const notes = [];
+        if (skipped) notes.push(`${skipped} skipped`);
+        if (adjusted) notes.push(`${adjusted} value${adjusted === 1 ? '' : 's'} corrected`);
+        message = {
+          text: `Imported ${imported} preset${imported === 1 ? '' : 's'}`
+            + (notes.length ? ` (${notes.join(', ')})` : '') + '.',
+          error: imported === 0 && skipped > 0,
+        };
+      });
+      refresh();
+    };
+    reader.onerror = () => {
+      message = { text: 'Could not read that file.', error: true };
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -134,6 +165,10 @@
       style="display:none"
     >
   </div>
+
+  {#if message}
+    <div class="message" class:error={message.error} role="status">{message.text}</div>
+  {/if}
 </div>
 
 <style>
@@ -234,5 +269,12 @@
   .io-row {
     display: flex;
     gap: 4px;
+  }
+  .message {
+    font-size: 0.72rem;
+    color: #aaa;
+  }
+  .message.error {
+    color: #e88;
   }
 </style>

@@ -64,8 +64,9 @@
   let screenDirty = true;
 
   function getAspectHeight() {
-    const parts = aspectRatio.split(':');
-    return Number(parts[1]) / Number(parts[0]);
+    const parts = String(aspectRatio).split(':');
+    const ratio = Number(parts[1]) / Number(parts[0]);
+    return Number.isFinite(ratio) && ratio > 0 ? ratio : 9 / 16;
   }
   let isFullscreen = $state(false);
   let isPoppedOut = $state(false);

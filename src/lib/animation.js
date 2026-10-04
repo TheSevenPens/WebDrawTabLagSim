@@ -1,4 +1,13 @@
 import { TIME_STEP_SCALE } from './constants.js';
+import { SETTINGS } from './settings.js';
+
+// Bounds that keep track generation finite even if given bad input
+const MIN_PEN_SPEED = SETTINGS.penSpeed.min;
+const MAX_TRACK_STEPS = 100000;
+
+function safePenSpeed(penSpeed) {
+  return Number.isFinite(penSpeed) && penSpeed > 0 ? penSpeed : MIN_PEN_SPEED;
+}
 
 // --- Path type: Lissajous ---
 const FREQ_X = 2;
@@ -97,7 +106,8 @@ export function autoPosition(t, canvasWidth, canvasHeight, pathType = 'lissajous
  * Compute how many simulation steps make up one full period at the given pen speed.
  */
 function stepsPerPeriod(penSpeed, pathType = 'lissajous') {
-  return Math.round(pathPeriod(pathType) / (penSpeed * TIME_STEP_SCALE));
+  const steps = Math.round(pathPeriod(pathType) / (safePenSpeed(penSpeed) * TIME_STEP_SCALE));
+  return Math.min(MAX_TRACK_STEPS, Math.max(1, steps));
 }
 
 /**
@@ -105,7 +115,7 @@ function stepsPerPeriod(penSpeed, pathType = 'lissajous') {
  */
 export function computeTrackA(canvasWidth, canvasHeight, penSpeed, pathType = 'lissajous') {
   const steps = stepsPerPeriod(penSpeed, pathType);
-  const dt = penSpeed * TIME_STEP_SCALE;
+  const dt = safePenSpeed(penSpeed) * TIME_STEP_SCALE;
   const points = [];
   for (let i = 0; i < steps; i++) {
     points.push(autoPosition(i * dt, canvasWidth, canvasHeight, pathType));

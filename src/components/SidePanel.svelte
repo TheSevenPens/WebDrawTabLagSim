@@ -3,122 +3,99 @@
   import Slider from './Slider.svelte';
   import Presets from './Presets.svelte';
 
+  import { SETTINGS } from '$lib/settings.js';
+
   let {
-    // Pen input
-    penSpeed = $bindable(),
-    pathType = $bindable(),
-    showPen = $bindable(),
-    // Pointer
-    pointerLatency = $bindable(),
-    pointerSmoothing = $bindable(),
-    reportRate = $bindable(),
-    showLabels = $bindable(),
-    showTracks = $bindable(),
-    showCircles = $bindable(),
-    showPointer = $bindable(),
-    pointerStyle = $bindable(),
-    pointerSize = $bindable(),
-    // Brush
-    brushLatency = $bindable(),
-    brushSmoothing = $bindable(),
-    // Brush engine
-    brushSize = $bindable(),
-    brushSpacing = $bindable(),
-    brushTrailLength = $bindable(),
-    showBrushStroke = $bindable(),
-    smoothStroke = $bindable(),
-    // Screen
-    screenMode = $bindable(),
-    screenResolution = $bindable(),
-    screenRefreshRate = $bindable(),
-    screenResponseTime = $bindable(),
-    showPixelGrid = $bindable(),
-    screenAntiAlias = $bindable(),
-    aspectRatio = $bindable(),
+    settings = $bindable(),
     // Actions
     getCurrentSettings,
     onLoadPreset,
   } = $props();
+
+  // min/max/step for a numeric setting
+  const range = (key) => {
+    const { min, max, step } = SETTINGS[key];
+    return { min, max, step };
+  };
 </script>
 
 <div class="side-panel">
   <CollapsibleSection title="PEN" open={false}>
     {#snippet headerExtra()}
-      <input type="checkbox" bind:checked={showPen} class="header-checkbox">
+      <input type="checkbox" bind:checked={settings.showPen} class="header-checkbox">
     {/snippet}
-    <Slider label="Speed" min={0.5} max={10} step={0.5} bind:value={penSpeed} />
+    <Slider label="Speed" {...range('penSpeed')} bind:value={settings.penSpeed} />
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <label>Path</label>
-      <select bind:value={pathType}>
-        <option value="lissajous">Lissajous</option>
-        <option value="circle">Circle</option>
-        <option value="star">Star</option>
+      <select bind:value={settings.pathType}>
+        {#each SETTINGS.pathType.options as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
       </select>
     </div>
   </CollapsibleSection>
 
   <CollapsibleSection title="TABLET" open={false}>
-    <Slider label="Latency" min={0} max={80} bind:value={pointerLatency} />
-    <Slider label="Smoothing" min={0} max={50} bind:value={pointerSmoothing} />
-    <Slider label="Report Rate (Hz)" min={1} max={60} bind:value={reportRate} />
+    <Slider label="Latency" {...range('pointerLatency')} bind:value={settings.pointerLatency} />
+    <Slider label="Smoothing" {...range('pointerSmoothing')} bind:value={settings.pointerSmoothing} />
+    <Slider label="Report Rate (Hz)" {...range('reportRate')} bind:value={settings.reportRate} />
   </CollapsibleSection>
 
   <CollapsibleSection title="OS POINTER" open={false}>
     {#snippet headerExtra()}
-      <input type="checkbox" bind:checked={showPointer} class="header-checkbox">
+      <input type="checkbox" bind:checked={settings.showPointer} class="header-checkbox">
     {/snippet}
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <label>Style</label>
-      <select bind:value={pointerStyle}>
-        <option value="mouse">Mouse</option>
-        <option value="crosshair">Crosshair</option>
+      <select bind:value={settings.pointerStyle}>
+        {#each SETTINGS.pointerStyle.options as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
       </select>
     </div>
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <label>Size</label>
-      <select bind:value={pointerSize}>
-        <option value={1}>1x</option>
-        <option value={2}>2x</option>
-        <option value={4}>4x</option>
-        <option value={8}>8x</option>
+      <select bind:value={settings.pointerSize}>
+        {#each SETTINGS.pointerSize.options as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
       </select>
     </div>
   </CollapsibleSection>
 
   <CollapsibleSection title="BRUSH" open={false}>
     {#snippet headerExtra()}
-      <input type="checkbox" bind:checked={showBrushStroke} class="header-checkbox">
+      <input type="checkbox" bind:checked={settings.showBrushStroke} class="header-checkbox">
     {/snippet}
-    <Slider label="Latency" min={0} max={80} bind:value={brushLatency} />
-    <Slider label="Smoothing" min={0} max={50} bind:value={brushSmoothing} />
-    <Slider label="Size" min={1} max={30} step={1} bind:value={brushSize} />
-    <Slider label="Spacing" min={0} max={50} bind:value={brushSpacing} />
-    <Slider label="Trail Length" min={5} max={300} step={5} bind:value={brushTrailLength} />
-    <label class="checkbox-single"><input type="checkbox" bind:checked={smoothStroke}> Use splines</label>
+    <Slider label="Latency" {...range('brushLatency')} bind:value={settings.brushLatency} />
+    <Slider label="Smoothing" {...range('brushSmoothing')} bind:value={settings.brushSmoothing} />
+    <Slider label="Size" {...range('brushSize')} bind:value={settings.brushSize} />
+    <Slider label="Spacing" {...range('brushSpacing')} bind:value={settings.brushSpacing} />
+    <Slider label="Trail Length" {...range('brushTrailLength')} bind:value={settings.brushTrailLength} />
+    <label class="checkbox-single"><input type="checkbox" bind:checked={settings.smoothStroke}> Use splines</label>
   </CollapsibleSection>
 
   <CollapsibleSection title="DISPLAY" open={false}>
     <div class="select-row">
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <label>Aspect Ratio</label>
-      <select bind:value={aspectRatio}>
-        <option value="16:9">16:9</option>
-        <option value="16:10">16:10</option>
-        <option value="4:3">4:3</option>
-        <option value="1:1">1:1</option>
+      <select bind:value={settings.aspectRatio}>
+        {#each SETTINGS.aspectRatio.options as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
       </select>
     </div>
-    <label class="checkbox-single"><input type="checkbox" bind:checked={screenMode}> Screen mode</label>
-    {#if screenMode}
-      <Slider label="Resolution (px)" min={80} max={320} step={10} bind:value={screenResolution} />
-      <Slider label="Refresh Rate (Hz)" min={10} max={144} bind:value={screenRefreshRate} />
-      <Slider label="Response Time (ms)" min={1} max={200} bind:value={screenResponseTime} />
+    <label class="checkbox-single"><input type="checkbox" bind:checked={settings.screenMode}> Screen mode</label>
+    {#if settings.screenMode}
+      <Slider label="Resolution (px)" {...range('screenResolution')} bind:value={settings.screenResolution} />
+      <Slider label="Refresh Rate (Hz)" {...range('screenRefreshRate')} bind:value={settings.screenRefreshRate} />
+      <Slider label="Response Time (ms)" {...range('screenResponseTime')} bind:value={settings.screenResponseTime} />
       <div class="checkbox-row">
-        <label><input type="checkbox" bind:checked={showPixelGrid}> Grid</label>
-        <label><input type="checkbox" bind:checked={screenAntiAlias}> AA</label>
+        <label><input type="checkbox" bind:checked={settings.showPixelGrid}> Grid</label>
+        <label><input type="checkbox" bind:checked={settings.screenAntiAlias}> AA</label>
       </div>
     {/if}
   </CollapsibleSection>
@@ -129,9 +106,9 @@
 
   <CollapsibleSection title="VIEW" open={false}>
     <div class="checkbox-row">
-      <label><input type="checkbox" bind:checked={showLabels}> Labels</label>
-      <label><input type="checkbox" bind:checked={showTracks}> Tracks</label>
-      <label><input type="checkbox" bind:checked={showCircles}> Circles</label>
+      <label><input type="checkbox" bind:checked={settings.showLabels}> Labels</label>
+      <label><input type="checkbox" bind:checked={settings.showTracks}> Tracks</label>
+      <label><input type="checkbox" bind:checked={settings.showCircles}> Circles</label>
     </div>
   </CollapsibleSection>
 
