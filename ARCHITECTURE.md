@@ -346,8 +346,10 @@ penSpeed → time increment → autoPosition(time, pathType) → posA
 ## Build & Deploy
 
 - **Dev**: `bun run dev` (or `npm run dev`) — Vite dev server with HMR
-- **Build**: `bun run build` — produces optimized static files in `dist/`
-- **Deploy**: Push to `master` → GitHub Actions builds and deploys to GitHub Pages at `/WebDrawTabLagSim/`
+- **Test**: `bun run test` — `node:test` unit tests in `tests/` covering settings validation, preset storage and the simulation/screen math (no browser needed)
+- **Build**: `bun run build` — produces optimized static files in `dist/`. With `CI=true` the build fails on Svelte compiler warnings.
+- **CI**: Pull requests run `bun install --frozen-lockfile`, tests and the build (`.github/workflows/ci.yml`)
+- **Deploy**: Push to `master` → GitHub Actions runs the same checks, then deploys to GitHub Pages at `/WebDrawTabLagSim/`
 
 ## Module Dependency Graph
 

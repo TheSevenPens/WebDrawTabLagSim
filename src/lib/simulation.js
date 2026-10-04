@@ -56,7 +56,14 @@ const ASSUMED_FPS = 60;
  * smoothing=0 → alpha=1 (passthrough), smoothing=100 → alpha≈0.01 (heavy filter).
  */
 function emaAlpha(smoothing) {
-  return 1 / (1 + smoothing);
+  // Negative/non-finite smoothing would give alpha > 1 (unstable) or NaN
+  const s = Number.isFinite(smoothing) ? Math.max(0, smoothing) : 0;
+  return 1 / (1 + s);
+}
+
+/** Latency in whole frames, never negative. */
+function latencyFrames(latency) {
+  return Number.isFinite(latency) ? Math.max(0, Math.round(latency)) : 0;
 }
 
 /**
@@ -77,8 +84,8 @@ function emaStep(st, input, alpha) {
 /**
  * Get a raw (unsmoothed) position from history, delayed by `latencyFrames`.
  */
-function getDelayedPos(latencyFrames, fallbackW, fallbackH) {
-  const idx = Math.max(0, posHistory.length - 1 - Math.round(latencyFrames));
+function getDelayedPos(frames, fallbackW, fallbackH) {
+  const idx = Math.max(0, posHistory.length - 1 - latencyFrames(frames));
   return posHistory[idx] || { x: fallbackW / 2, y: fallbackH / 2 };
 }
 
@@ -87,8 +94,8 @@ function pushBHistory(pos) {
   if (posBHistory.length > HISTORY_SIZE) posBHistory.shift();
 }
 
-function getBDelayedPos(latencyFrames, W, H) {
-  const idx = Math.max(0, posBHistory.length - 1 - Math.round(latencyFrames));
+function getBDelayedPos(frames, W, H) {
+  const idx = Math.max(0, posBHistory.length - 1 - latencyFrames(frames));
   return posBHistory[idx] || { x: W / 2, y: H / 2 };
 }
 
@@ -111,6 +118,10 @@ export function pushHistory(pos) {
  * @param {number} maxTrailLength - Maximum number of points in the trail buffer
  */
 export function pushBrushTrail(pos, brushSpacing = 0, maxTrailLength = BRUSH_TRAIL_MAX) {
+  // Enforce capacity first so the bound holds even when spacing skips this point
+  const cap = Math.max(1, Math.floor(maxTrailLength) || 1);
+  if (brushTrail.length > cap) brushTrail.splice(0, brushTrail.length - cap);
+
   if (brushSpacing > 0 && brushTrail.length > 0) {
     const last = brushTrail[brushTrail.length - 1];
     const dx = pos.x - last.x;
@@ -120,7 +131,7 @@ export function pushBrushTrail(pos, brushSpacing = 0, maxTrailLength = BRUSH_TRA
     }
   }
   brushTrail.push({ x: pos.x, y: pos.y });
-  while (brushTrail.length > maxTrailLength) brushTrail.shift();
+  if (brushTrail.length > cap) brushTrail.shift();
 }
 
 /**
@@ -136,7 +147,8 @@ export function computeCurrentPositions(W, H, params) {
   const alphaC = emaAlpha(params.brushSmoothing);
 
   // Determine if this frame is a report frame
-  const reportRate = params.reportRate || ASSUMED_FPS;
+  const reportRate = Number.isFinite(params.reportRate) && params.reportRate > 0
+    ? params.reportRate : ASSUMED_FPS;
   const framesPerReport = Math.max(1, Math.round(ASSUMED_FPS / reportRate));
 
   frameCounter++;
@@ -165,16 +177,18 @@ export function computeCurrentPositions(W, H, params) {
  *
  * @param {number} W - canvas width
  * @param {number} H - canvas height
- * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate }
+ * @param {object} params - { pointerLatency, pointerSmoothing, brushLatency, brushSmoothing, penSpeed, pathType, reportRate, brushSpacing, brushTrailLength }
+ * @returns {{ t: number, posA: object, posB: object, posC: object }} final time and positions
  */
 export function preWarm(W, H, params) {
   let t = 0;
+  let posA, posB, posC;
   for (let i = 0; i < HISTORY_SIZE; i++) {
     t += params.penSpeed * TIME_STEP_SCALE;
-    const posA = autoPosition(t, W, H, params.pathType || 'lissajous');
+    posA = autoPosition(t, W, H, params.pathType || 'lissajous');
     pushHistory(posA);
-    const { posC } = computeCurrentPositions(W, H, params);
-    pushBrushTrail(posC);
+    ({ posB, posC } = computeCurrentPositions(W, H, params));
+    pushBrushTrail(posC, params.brushSpacing, params.brushTrailLength);
   }
-  return t;
+  return { t, posA, posB, posC };
 }
