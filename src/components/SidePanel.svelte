@@ -5,6 +5,8 @@
 
   import { SETTINGS } from '$lib/settings.js';
 
+  const uid = $props.id();
+
   let {
     settings = $bindable(),
     // Actions
@@ -22,13 +24,12 @@
 <div class="side-panel">
   <CollapsibleSection title="PEN" open={false}>
     {#snippet headerExtra()}
-      <input type="checkbox" bind:checked={settings.showPen} class="header-checkbox">
+      <input type="checkbox" bind:checked={settings.showPen} class="header-checkbox" aria-label="Show pen">
     {/snippet}
     <Slider label="Speed" {...range('penSpeed')} bind:value={settings.penSpeed} />
     <div class="select-row">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label>Path</label>
-      <select bind:value={settings.pathType}>
+      <label for="{uid}-path">Path</label>
+      <select id="{uid}-path" bind:value={settings.pathType}>
         {#each SETTINGS.pathType.options as opt}
           <option value={opt.value}>{opt.label}</option>
         {/each}
@@ -44,21 +45,19 @@
 
   <CollapsibleSection title="OS POINTER" open={false}>
     {#snippet headerExtra()}
-      <input type="checkbox" bind:checked={settings.showPointer} class="header-checkbox">
+      <input type="checkbox" bind:checked={settings.showPointer} class="header-checkbox" aria-label="Show OS pointer">
     {/snippet}
     <div class="select-row">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label>Style</label>
-      <select bind:value={settings.pointerStyle}>
+      <label for="{uid}-pstyle">Style</label>
+      <select id="{uid}-pstyle" bind:value={settings.pointerStyle}>
         {#each SETTINGS.pointerStyle.options as opt}
           <option value={opt.value}>{opt.label}</option>
         {/each}
       </select>
     </div>
     <div class="select-row">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label>Size</label>
-      <select bind:value={settings.pointerSize}>
+      <label for="{uid}-psize">Size</label>
+      <select id="{uid}-psize" bind:value={settings.pointerSize}>
         {#each SETTINGS.pointerSize.options as opt}
           <option value={opt.value}>{opt.label}</option>
         {/each}
@@ -68,7 +67,7 @@
 
   <CollapsibleSection title="BRUSH" open={false}>
     {#snippet headerExtra()}
-      <input type="checkbox" bind:checked={settings.showBrushStroke} class="header-checkbox">
+      <input type="checkbox" bind:checked={settings.showBrushStroke} class="header-checkbox" aria-label="Show brush stroke">
     {/snippet}
     <Slider label="Latency" {...range('brushLatency')} bind:value={settings.brushLatency} />
     <Slider label="Smoothing" {...range('brushSmoothing')} bind:value={settings.brushSmoothing} />
@@ -80,9 +79,8 @@
 
   <CollapsibleSection title="DISPLAY" open={false}>
     <div class="select-row">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label>Aspect Ratio</label>
-      <select bind:value={settings.aspectRatio}>
+      <label for="{uid}-aspect">Aspect Ratio</label>
+      <select id="{uid}-aspect" bind:value={settings.aspectRatio}>
         {#each SETTINGS.aspectRatio.options as opt}
           <option value={opt.value}>{opt.label}</option>
         {/each}
