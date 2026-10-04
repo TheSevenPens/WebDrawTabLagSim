@@ -13,7 +13,7 @@
 
   // Restart key — incrementing forces Canvas to re-mount
   let restartKey = $state(0);
-  let prevPathType = settings.pathType;
+  let prevPathType = DEFAULT_SETTINGS.pathType;
 
   // Auto-restart when path type changes
   $effect(() => {

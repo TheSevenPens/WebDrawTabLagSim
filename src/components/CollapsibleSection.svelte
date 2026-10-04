@@ -1,5 +1,7 @@
 <script>
   let { title, open = true, children, headerExtra } = $props();
+  // `open` only seeds the initial state; later changes to the prop are not tracked
+  // svelte-ignore state_referenced_locally
   let isOpen = $state(open);
 </script>
 
