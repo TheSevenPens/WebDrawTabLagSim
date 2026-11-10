@@ -21,6 +21,7 @@
     brushLatency,
     brushSmoothing,
     penSpeed,
+    penSize,
     showPen,
     showLabels,
     showTracks,
@@ -488,7 +489,7 @@
         // Draw ideal overlays on top (ground truth elements)
         if (showBrushStroke) drawPosition(ctx, posC, 'c', showCircles, showLabels);
         if (showPointer) drawPosition(ctx, posB, 'b', showCircles, showLabels);
-        if (showPen) drawPen(ctx, posA.x, posA.y);
+        if (showPen) drawPen(ctx, posA.x, posA.y, penSize);
         if (showPen) drawPosition(ctx, posA, 'a', showCircles, showLabels);
 
       } else {
@@ -504,7 +505,7 @@
           else drawPointer(ctx, posB.x, posB.y, pointerSize);
         }
         if (showPointer) drawPosition(ctx, posB, 'b', showCircles, showLabels);
-        if (showPen) drawPen(ctx, posA.x, posA.y);
+        if (showPen) drawPen(ctx, posA.x, posA.y, penSize);
         if (showPen) drawPosition(ctx, posA, 'a', showCircles, showLabels);
       }
 

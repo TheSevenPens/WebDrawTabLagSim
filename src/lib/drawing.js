@@ -54,33 +54,128 @@ export function drawLabel(ctx, text, x, y, fontSize) {
   ctx.restore();
 }
 
-export function drawPen(ctx, x, y) {
-  const H = 55, W = 12;
+// The pen outline, taken from the standing Wacom pen drawing (eraser end up, tip
+// down). Only the right half is stored; each shape walks down that half and back up
+// its mirror image about the center line, so the pen is symmetric by construction.
+// Coordinates are the drawing's own units (its 4725 x 4725 viewBox).
+const PEN_CENTER_X = 2338.333;
+const PEN_TOP_Y = 211.483; // top of the eraser cap
+const PEN_TIP_Y = 4566.1; // bottom of the nib: this is the point drawn at (x, y)
+const PEN_HALF_WIDTH = 198; // widest point of the barrel, measured from the center line
+
+// Rendered height of the pen in canvas pixels at scale 1 (the Medium size); the width
+// follows from the drawing.
+const PEN_HEIGHT = 120;
+
+// Right-half segments. 'L' is a line to (x, y); 'C' is a cubic Bezier through
+// control points (c1x, c1y), (c2x, c2y) to (x, y). Each shape starts on the center line.
+const PEN_CAP = {
+  start: [PEN_CENTER_X, PEN_TOP_Y],
+  segments: [
+    ['C', 2369.487, 211.483, 2396.639, 212.755, 2410.262, 235.863],
+    ['C', 2421.521, 254.961, 2426.781, 344.92, 2428.795, 391.864],
+    ['L', PEN_CENTER_X, 391.864],
+  ],
+};
+const PEN_BARREL = {
+  start: [PEN_CENTER_X, 391.864],
+  segments: [
+    ['L', 2452.807, 391.864],
+    ['L', 2489.204, 2019.789],
+    ['C', 2489.204, 2019.789, 2501.978, 3361.186, 2511.924, 3856.933],
+    ['C', 2514.076, 3964.223, 2536.04, 3985.115, 2536.306, 4037.548],
+    ['C', 2536.437, 4063.374, 2469.928, 4254.56, 2469.928, 4254.56],
+    ['L', 2381.038, 4521.634],
+    ['L', PEN_CENTER_X, 4521.634],
+  ],
+};
+const PEN_NIB = {
+  start: [PEN_CENTER_X, 4521.634],
+  segments: [
+    ['L', 2352.926, 4521.634],
+    ['L', 2352.926, 4552.979],
+    ['C', 2352.926, 4556.459, 2351.544, 4559.796, 2349.083, 4562.257],
+    ['C', 2346.622, 4564.718, 2343.285, 4566.1, 2339.805, 4566.1],
+    ['L', PEN_CENTER_X, 4566.1],
+  ],
+};
+
+/**
+ * Build the closed outline of a shape: down its right-hand segments, then back up
+ * the same segments mirrored about the center line.
+ */
+function buildPenShape({ start, segments }) {
+  const mirror = (px) => 2 * PEN_CENTER_X - px;
+  const path = new Path2D();
+  path.moveTo(start[0], start[1]);
+
+  const nodes = [start];
+  for (const [kind, ...v] of segments) {
+    if (kind === 'L') path.lineTo(v[0], v[1]);
+    else path.bezierCurveTo(v[0], v[1], v[2], v[3], v[4], v[5]);
+    nodes.push(v.slice(-2));
+  }
+
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const [kind, ...v] = segments[i];
+    const [px, py] = nodes[i];
+    if (kind === 'L') path.lineTo(mirror(px), py);
+    // Walking a curve backward swaps its two control points
+    else path.bezierCurveTo(mirror(v[2]), v[3], mirror(v[0]), v[1], mirror(px), py);
+  }
+  path.closePath();
+  return path;
+}
+
+// Path2D does not exist where the unit tests run, and the shapes are only needed
+// once a pen is drawn, so they are built on first use.
+let penShapes = null;
+function getPenShapes() {
+  penShapes ??= {
+    cap: buildPenShape(PEN_CAP),
+    barrel: buildPenShape(PEN_BARREL),
+    nib: buildPenShape(PEN_NIB),
+  };
+  return penShapes;
+}
+
+/** Draw the pen standing upright with its tip at (x, y), `size` times its Medium size. */
+export function drawPen(ctx, x, y, size = 1) {
+  const { cap, barrel, nib } = getPenShapes();
+  const scale = (PEN_HEIGHT * size) / (PEN_TIP_Y - PEN_TOP_Y);
+
   ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.translate(-PEN_CENTER_X, -PEN_TIP_Y);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1 / scale; // a 1px outline whatever the pen's size
+  ctx.strokeStyle = COLORS.penTip;
+
+  // The shadow is in canvas pixels, so it is unaffected by the scale above
   ctx.shadowColor = 'rgba(0,0,0,0.2)';
   ctx.shadowBlur = 6;
   ctx.shadowOffsetX = 2;
   ctx.shadowOffsetY = 2;
-  const grad = ctx.createLinearGradient(x - W / 2, y - H, x + W / 2, y);
-  grad.addColorStop(0, COLORS.penBody[0]);
-  grad.addColorStop(0.7, COLORS.penBody[1]);
+
+  // Across the barrel: a highlight toward the left, shading toward the right
+  const grad = ctx.createLinearGradient(PEN_CENTER_X - PEN_HALF_WIDTH, 0, PEN_CENTER_X + PEN_HALF_WIDTH, 0);
+  grad.addColorStop(0, COLORS.penBody[2]);
+  grad.addColorStop(0.3, COLORS.penBody[0]);
+  grad.addColorStop(0.75, COLORS.penBody[1]);
   grad.addColorStop(1, COLORS.penBody[2]);
   ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(x - W / 2, y - H);
-  ctx.lineTo(x + W / 2, y - H);
-  ctx.lineTo(x + 3, y - 5);
-  ctx.lineTo(x - 3, y - 5);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fill(barrel);
+  ctx.stroke(barrel);
+
+  ctx.fillStyle = COLORS.penBody[1];
+  ctx.fill(cap);
+  ctx.stroke(cap);
+
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = COLORS.penTip;
-  ctx.beginPath();
-  ctx.moveTo(x - 3, y - 5);
-  ctx.lineTo(x + 3, y - 5);
-  ctx.lineTo(x, y + 3);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fill(nib);
+  ctx.stroke(nib);
   ctx.restore();
 }
 
