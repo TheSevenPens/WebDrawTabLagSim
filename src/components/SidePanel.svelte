@@ -80,6 +80,14 @@
     <Slider label="Latency" {...range('brushLatency')} bind:value={settings.brushLatency} />
     <Slider label="Smoothing" {...range('brushSmoothing')} bind:value={settings.brushSmoothing} />
     <Slider label="Size" {...range('brushSize')} bind:value={settings.brushSize} />
+    <div class="select-row">
+      <label for="{uid}-bwidth">Width</label>
+      <select id="{uid}-bwidth" bind:value={settings.brushWidth}>
+        {#each SETTINGS.brushWidth.options as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
+      </select>
+    </div>
     <Slider label="Spacing" {...range('brushSpacing')} bind:value={settings.brushSpacing} />
     <Slider label="Trail Length" {...range('brushTrailLength')} bind:value={settings.brushTrailLength} />
     <label class="checkbox-single"><input type="checkbox" bind:checked={settings.smoothStroke}> Use splines</label>

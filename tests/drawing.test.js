@@ -124,6 +124,50 @@ test('straight-line strokes are unchanged: one stroke per segment, plus the high
   assert.equal(ctx.calls.stroke, 99 + (100 - Math.floor(100 * 0.5)));
 });
 
+// --- stroke width along the trail ---
+
+/**
+ * The line widths of the stroke body (the first pass) of a straight-line stroke, in
+ * the order drawn: tail to head.
+ */
+function bodyWidths(trail, widthMode) {
+  const widths = [];
+  const noop = () => {};
+  const ctx = {
+    save: noop, restore: noop, beginPath: noop, moveTo: noop, lineTo: noop, stroke: noop,
+    set strokeStyle(_) {}, set lineCap(_) {}, set lineJoin(_) {},
+    set lineWidth(w) { widths.push(w); },
+  };
+  drawBrushStroke(ctx, trail, 10, false, widthMode);
+  // One body segment per trail gap; the highlight pass follows
+  return widths.slice(0, trail.length - 1);
+}
+
+test('a tapered stroke thins toward its tail, and is the default', () => {
+  const trail = realTrail({ length: 100 });
+  const widths = bodyWidths(trail, 'tapered');
+  assert.ok(widths[0] < 1.1, `tail ${widths[0]}`);
+  assert.ok(widths.at(-1) > 30, `head ${widths.at(-1)}`);
+  for (let i = 1; i < widths.length; i++) assert.ok(widths[i] >= widths[i - 1]);
+  assert.deepEqual(bodyWidths(trail, undefined), widths);
+});
+
+test('a uniform stroke is as wide at its tail as at its head', () => {
+  const trail = realTrail({ length: 100 });
+  const widths = bodyWidths(trail, 'uniform');
+  assert.equal(widths.length, trail.length - 1);
+  assert.ok(widths.every(w => w === 36), `widths ${[...new Set(widths)]}`);
+});
+
+test('a uniform stroke never needs more pieces than a tapered one, as no width change adds to them', () => {
+  const trail = realTrail({ length: 100 });
+  const tapered = countingContext();
+  const uniform = countingContext();
+  drawBrushStroke(tapered, trail, 4, true, 'tapered');
+  drawBrushStroke(uniform, trail, 4, true, 'uniform');
+  assert.ok(uniform.calls.stroke <= tapered.calls.stroke, `${uniform.calls.stroke} vs ${tapered.calls.stroke}`);
+});
+
 // --- the curve is the same curve ---
 
 test('adaptive pieces stay within half a pixel of the old 16-piece curve, at every report rate', () => {

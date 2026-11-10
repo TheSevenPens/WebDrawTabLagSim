@@ -81,6 +81,14 @@ export const SETTINGS = Object.freeze(/** @type {const} */ ({
   brushLatency: { type: 'number', default: 35, min: 0, max: 80, step: 1 },
   brushSmoothing: { type: 'number', default: 0, min: 0, max: 50, step: 1 },
   brushSize: { type: 'number', default: 4, min: 1, max: 30, step: 1 },
+  // Whether the stroke thins toward its tail (the original look) or stays as wide as its head
+  brushWidth: {
+    type: 'enum', default: 'tapered',
+    options: [
+      { value: 'tapered', label: 'Tapered' },
+      { value: 'uniform', label: 'Uniform' },
+    ],
+  },
   brushSpacing: { type: 'number', default: 0, min: 0, max: 50, step: 1 },
   brushTrailLength: { type: 'number', default: 180, min: 5, max: 300, step: 5 },
   smoothStroke: { type: 'boolean', default: false },

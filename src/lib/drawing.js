@@ -251,9 +251,26 @@ export function subdivisionsFor(p1, p2, c, widthChange = 0, alphaChange = 0) {
   return Math.min(SUBDIVISIONS, pieces);
 }
 
-export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false) {
+// Line width of the stroke body and its highlight, before the brush size scale. In the
+// tapered look they grow from the tail (t = 0) to these values at the head (t = 1); in
+// the uniform look they hold these values along the whole trail.
+const BODY_WIDTH_MIN = 1;
+const BODY_WIDTH_MAX = 36;
+const HIGHLIGHT_WIDTH_MAX = 20;
+
+/**
+ * @param {'tapered' | 'uniform'} [widthMode] - 'tapered' thins the stroke toward the
+ *   tail (the default look); 'uniform' keeps it as wide as the head all the way back.
+ *   Opacity fades toward the tail either way.
+ */
+export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false, widthMode = 'tapered') {
   if (trail.length < 3) return;
   const scale = brushSize / 10; // UI range 1–30, normalized so 10 = default
+  const uniform = widthMode === 'uniform';
+  const bodyWidth = (t) => (uniform ? BODY_WIDTH_MAX : BODY_WIDTH_MIN + t * t * (BODY_WIDTH_MAX - BODY_WIDTH_MIN)) * scale;
+  const highlightWidth = (t) => (uniform ? HIGHLIGHT_WIDTH_MAX : t * t * HIGHLIGHT_WIDTH_MAX) * scale;
+  // |body width change| across one trail segment, for choosing subdivisions
+  const bodyWidthChange = (t0, t1) => Math.abs(bodyWidth(t1) - bodyWidth(t0));
   const [r, g, b] = COLORS.brushStroke;
   const [hr, hg, hb] = COLORS.brushHighlight;
   ctx.save();
@@ -276,7 +293,7 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
       let prevPt = { x: p1.x, y: p1.y };
       const pieces = subdivisionsFor(
         p1, p2, { cp1x, cp1y, cp2x, cp2y },
-        35 * scale * (t1 * t1 - t0 * t0), 0.55 * (t1 - t0),
+        bodyWidthChange(t0, t1), 0.55 * (t1 - t0),
       );
 
       for (let sub = 1; sub <= pieces; sub++) {
@@ -286,7 +303,7 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
         // Interpolate t across the subdivision for smooth width/alpha
         const t = t0 + (t1 - t0) * s;
         const alpha = 0.08 + t * 0.55;
-        const width = (1 + t * t * 35) * scale;
+        const width = bodyWidth(t);
 
         ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         ctx.lineWidth = width;
@@ -314,7 +331,7 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
       let prevPt = { x: p1.x, y: p1.y };
       const pieces = subdivisionsFor(
         p1, p2, { cp1x, cp1y, cp2x, cp2y },
-        35 * scale * (t1 * t1 - t0 * t0), 0.55 * (t1 - t0),
+        bodyWidthChange(t0, t1), 0.55 * (t1 - t0),
       );
 
       for (let sub = 1; sub <= pieces; sub++) {
@@ -322,7 +339,7 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
         const pt = evalBezier(p1.x, p1.y, cp1x, cp1y, cp2x, cp2y, p2.x, p2.y, s);
 
         const t = t0 + (t1 - t0) * s;
-        const w = t * t * 20 * scale;
+        const w = highlightWidth(t);
 
         ctx.strokeStyle = `rgba(${hr}, ${hg}, ${hb}, ${t * 0.15})`;
         ctx.lineWidth = w;
@@ -339,7 +356,7 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
     for (let i = 1; i < trail.length; i++) {
       const t = i / trail.length;
       ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.08 + t * 0.55})`;
-      ctx.lineWidth = (1 + t * t * 35) * scale;
+      ctx.lineWidth = bodyWidth(t);
       ctx.beginPath();
       ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
       ctx.lineTo(trail[i].x, trail[i].y);
@@ -349,7 +366,7 @@ export function drawBrushStroke(ctx, trail, brushSize = 10, smoothStroke = false
     const halfLen = Math.floor(trail.length * 0.5);
     for (let i = halfLen; i < trail.length; i++) {
       const t = i / trail.length;
-      const w = t * t * 20 * scale;
+      const w = highlightWidth(t);
       ctx.strokeStyle = `rgba(${hr}, ${hg}, ${hb}, ${t * 0.15})`;
       ctx.lineWidth = w;
       ctx.beginPath();

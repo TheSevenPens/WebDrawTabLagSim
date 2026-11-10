@@ -32,6 +32,7 @@
     showBrushStroke,
     pathType,
     brushSize,
+    brushWidth,
     reportRate,
     brushSpacing,
     smoothStroke,
@@ -324,7 +325,7 @@
   $effect(() => {
     const _visual = [
       showBrushStroke, showPointer, pointerStyle, pointerSize,
-      brushSize, smoothStroke, screenAntiAlias,
+      brushSize, brushWidth, smoothStroke, screenAntiAlias,
     ];
     if (mounted && untrack(() => simPaused)) screenDirty = true;
   });
@@ -397,7 +398,7 @@
       sctx.save();
       sctx.scale(screen.width / logicalW, screen.height / logicalH);
 
-      if (showBrushStroke) drawBrushStroke(sctx, sim.brushTrail, brushSize, smoothStroke);
+      if (showBrushStroke) drawBrushStroke(sctx, sim.brushTrail, brushSize, smoothStroke, brushWidth);
       if (showPointer) {
         const { posB } = current;
         if (pointerStyle === 'crosshair') drawCrosshair(sctx, posB.x, posB.y, pointerSize);
@@ -495,7 +496,7 @@
         // === ORIGINAL PATH ===
 
         // Brush stroke trail
-        if (showBrushStroke) drawBrushStroke(ctx, sim.brushTrail, brushSize, smoothStroke);
+        if (showBrushStroke) drawBrushStroke(ctx, sim.brushTrail, brushSize, smoothStroke, brushWidth);
 
         // Draw elements back to front
         if (showBrushStroke) drawPosition(ctx, posC, 'c', showCircles, showLabels);
