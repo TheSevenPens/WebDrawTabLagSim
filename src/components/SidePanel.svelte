@@ -43,6 +43,14 @@
         {/each}
       </select>
     </div>
+    <div class="select-row">
+      <label for="{uid}-pensize">Size</label>
+      <select id="{uid}-pensize" bind:value={settings.penSize}>
+        {#each SETTINGS.penSize.options as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
+      </select>
+    </div>
   </CollapsibleSection>
 
   <CollapsibleSection title="TABLET" open={false}>

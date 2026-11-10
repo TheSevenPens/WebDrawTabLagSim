@@ -50,6 +50,15 @@ export const SETTINGS = Object.freeze(/** @type {const} */ ({
       { value: 'star', label: 'Star' },
     ],
   },
+  // Scale of the drawn pen: Medium is the original size
+  penSize: {
+    type: 'enum', default: 1,
+    options: [
+      { value: 0.6, label: 'Small' },
+      { value: 1, label: 'Medium' },
+      { value: 1.6, label: 'Large' },
+    ],
+  },
   showPen: { type: 'boolean', default: true },
 
   // Tablet

@@ -34,6 +34,7 @@ All controls are organized in collapsible sections. Click a section header (▶)
 **PEN section** — checkbox in the header toggles visibility of the pen tip and all its overlays (label, track, circle for point a).
 - **Speed** (0.5–10) — how fast the pen tip moves along its path. Lower values make it easier to observe lag effects.
 - **Path** — the shape the pen tip follows: Lissajous (pretzel-like curve), Circle, or Star (pentagram). Changing path type auto-restarts the animation.
+- **Size** — dropdown to scale the drawn pen: Small, Medium, or Large. Only the picture of the pen changes; the tip stays on point a. Default is Medium.
 
 **TABLET section**
 - **Latency** (0–80) — pure time delay in ticks of 1/60 s (16.7 ms), so it is the same on any display. Higher values push b further behind a along the path.
